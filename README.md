@@ -60,6 +60,9 @@ Prerequisites: Docker, and (once scaffolded) PHP 8.3+, Composer, Node 20+.
 ```bash
 cp .env.example .env
 docker compose up -d      # Postgres(+pgvector), Redis, MinIO, Mailpit
+cp backend/.env.example backend/.env
+cd backend && composer install && php artisan key:generate
+cd ../frontend && npm install
 ```
 
 | Service | URL |
@@ -69,7 +72,18 @@ docker compose up -d      # Postgres(+pgvector), Redis, MinIO, Mailpit
 | MinIO console | http://localhost:9001 |
 | Mailpit inbox | http://localhost:8025 |
 
-Backend and frontend run instructions are added in Phase 1.
+Run services:
+
+```bash
+# backend
+cd backend
+php artisan migrate
+php artisan serve
+
+# frontend (new terminal)
+cd frontend
+npm run dev
+```
 
 ## Documentation
 
