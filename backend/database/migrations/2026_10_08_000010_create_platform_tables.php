@@ -18,7 +18,7 @@ return new class extends Migration
         // ---------- Notifications ----------
         Schema::create('notifications', function (Blueprint $table) {
             $table->id();
-            $table->uuid('uuid')->unique()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('uuid')->unique();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('type', 80);                 // job_alert|application_update|interview_reminder|payment_receipt|...
             $table->jsonb('data');
