@@ -45,7 +45,7 @@ return new class extends Migration
 
         Schema::create('subscriptions', function (Blueprint $table) {
             $table->id();
-            $table->uuid('uuid')->unique()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('uuid')->unique();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('plan_id')->constrained()->restrictOnDelete();
             $table->foreignId('company_id')->nullable()->constrained()->nullOnDelete();   // B2B
@@ -76,7 +76,7 @@ return new class extends Migration
 
         Schema::create('payment_intents', function (Blueprint $table) {
             $table->id();
-            $table->uuid('uuid')->unique()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('uuid')->unique();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('plan_id')->constrained()->restrictOnDelete();
             $table->foreignId('subscription_id')->nullable()->constrained()->nullOnDelete();
@@ -95,7 +95,7 @@ return new class extends Migration
         // Immutable ledger-style record of verified money movements.
         Schema::create('payment_transactions', function (Blueprint $table) {
             $table->id();
-            $table->uuid('uuid')->unique()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('uuid')->unique();
             $table->foreignId('payment_intent_id')->constrained()->cascadeOnDelete();
             $table->string('provider', 40);
             $table->string('provider_reference', 190)->nullable();
