@@ -46,10 +46,9 @@ return new class extends Migration
             $table->index(['candidate_profile_id', 'parse_status']);
         });
 
-        Schema::add('applications', 'cv_version_id', [
-            'foreign' => 'cv_versions:id',
-            'onDelete' => 'nullOnDelete',
-        ]);
+        // NOTE: applications.cv_version_id (column + FK) is created in migration
+        // 2026_10_08_000012_create_application_tables.php, because the applications
+        // table does not exist yet at this point. Do not add forward references here.
 
         Schema::create('job_matches', function (Blueprint $table) {
             $table->id();
@@ -69,20 +68,28 @@ return new class extends Migration
             $table->index(['candidate_profile_id', 'overall_score']);
         });
 
-        // Semantic layer: pgvector embeddings when the extension is installed.
-        $hasVector = DB::selectOne("SELECT 1 FROM pg_extension WHERE extname = 'vector'");
-        if ($hasVector) {
+        // Semantic layer: pgvector embeddings are OPTIONAL. They are added only when
+        // the 'vector' extension is installed; migrations must not fail without it.
+        // See docs/DATABASE.md ("Optional pgvector embeddings").
+        if ($this->pgvectorAvailable()) {
             DB::statement('ALTER TABLE skills ADD COLUMN IF NOT EXISTS embedding vector(1536);');
-            DB::statement('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS embedding vector(1536);');
             DB::statement('ALTER TABLE candidate_profiles ADD COLUMN IF NOT EXISTS embedding vector(1536);');
+            // jobs table is created later (migration ...000011); its embedding column
+            // is added there under the same conditional check.
         }
+    }
+
+    private function pgvectorAvailable(): bool
+    {
+        return (bool) DB::selectOne("SELECT 1 FROM pg_extension WHERE extname = 'vector'");
     }
 
     public function down(): void
     {
-        Schema::table('applications', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('cv_version_id');
-        });
+        if ($this->pgvectorAvailable()) {
+            DB::statement('ALTER TABLE skills DROP COLUMN IF EXISTS embedding;');
+            DB::statement('ALTER TABLE candidate_profiles DROP COLUMN IF EXISTS embedding;');
+        }
         Schema::dropIfExists('job_matches');
         Schema::dropIfExists('cv_versions');
         Schema::dropIfExists('documents');

@@ -63,7 +63,7 @@ return new class extends Migration
             $table->unsignedInteger('credits_requested');
             $table->unsignedInteger('credits_charged')->default(0);
             $table->enum('status', ['reserved', 'committed', 'refunded', 'failed'])->default('reserved');
-            $table->foreignId('ai_usage_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('ai_usage_id')->nullable()->constrained('ai_usage')->nullOnDelete();
             $table->timestamps();
             $table->index(['user_id', 'status']);
         });

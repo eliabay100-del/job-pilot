@@ -234,26 +234,14 @@ return new class extends Migration
             $table->index(['event', 'created_at']);
         });
 
-        Schema::create('job_source_records', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('job_source_id')->constrained()->cascadeOnDelete();
-            $table->string('external_id', 190)->nullable();
-            $table->string('source_url', 600);
-            $table->jsonb('raw_payload')->nullable();
-            $table->enum('status', ['new', 'parsed', 'duplicate', 'rejected', 'error'])->default('new');
-            $table->foreignId('job_id')->nullable()->constrained()->nullOnDelete();
-            $table->text('error')->nullable();
-            $table->timestamp('fetched_at');
-            $table->timestamps();
-            $table->index(['job_source_id', 'status']);
-            $table->unique(['job_source_id', 'source_url'], 'job_source_records_unique_url');
-        });
+        // NOTE: job_source_records is created in migration ...000011 (job tables),
+        // because it references job_sources and jobs, which are created there.
     }
 
     public function down(): void
     {
         foreach ([
-            'job_source_records', 'analytics_events', 'audit_logs', 'risk_scores', 'reports',
+            'analytics_events', 'audit_logs', 'risk_scores', 'reports',
             'graduate_outcomes', 'career_resources', 'university_memberships', 'university_cohorts',
             'university_departments', 'b2b_payment_fk_placeholder_none',
         ] as $t) {

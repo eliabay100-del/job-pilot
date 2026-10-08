@@ -34,6 +34,14 @@ return new class extends Migration
             $table->index(['candidate_profile_id', 'status']);
         });
 
+        // applications.cv_version_id lives here (not in migration ...000007) because
+        // the applications table is created by this migration; cv_versions already
+        // exists (created in ...000007), so the FK can be attached safely now.
+        Schema::table('applications', function (Blueprint $table) {
+            $table->foreignId('cv_version_id')->nullable()
+                ->constrained('cv_versions')->nullOnDelete();
+            $table->index('cv_version_id');
+        });
         Schema::create('application_events', function (Blueprint $table) {
             $table->id();
             $table->foreignId('application_id')->constrained()->cascadeOnDelete();

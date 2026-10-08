@@ -100,6 +100,21 @@ return new class extends Migration
             $table->unique(['user_id', 'job_id']);
         });
 
+        // Moved here from migration ...000010 because it references job_sources and jobs.
+        Schema::create('job_source_records', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('job_source_id')->constrained()->cascadeOnDelete();
+            $table->string('external_id', 190)->nullable();
+            $table->string('source_url', 600);
+            $table->jsonb('raw_payload')->nullable();
+            $table->enum('status', ['new', 'parsed', 'duplicate', 'rejected', 'error'])->default('new');
+            $table->foreignId('job_id')->nullable()->constrained()->nullOnDelete();
+            $table->text('error')->nullable();
+            $table->timestamp('fetched_at');
+            $table->timestamps();
+            $table->index(['job_source_id', 'status']);
+            $table->unique(['job_source_id', 'source_url'], 'job_source_records_unique_url');
+        });
         // PostgreSQL full-text search column + GIN index (driver: pgsql).
         \DB::statement("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS search_vector tsvector
             GENERATED ALWAYS AS (
@@ -108,11 +123,24 @@ return new class extends Migration
                 setweight(to_tsvector('simple', coalesce(city, '')), 'C')
             ) STORED;");
         \DB::statement('CREATE INDEX IF NOT EXISTS jobs_search_vector_idx ON jobs USING GIN (search_vector);');
+        // Optional pgvector embedding for the jobs table (see docs/DATABASE.md).
+        if ($this->pgvectorAvailable()) {
+            \DB::statement('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS embedding vector(1536);');
+        }
+    }
+
+    private function pgvectorAvailable(): bool
+    {
+        return (bool) \DB::selectOne("SELECT 1 FROM pg_extension WHERE extname = 'vector'");
     }
 
     public function down(): void
     {
+        if ($this->pgvectorAvailable()) {
+            \DB::statement('ALTER TABLE jobs DROP COLUMN IF EXISTS embedding;');
+        }
         \DB::statement('DROP INDEX IF EXISTS jobs_search_vector_idx;');
+        Schema::dropIfExists('job_source_records');
         Schema::dropIfExists('saved_jobs');
         Schema::dropIfExists('job_skills');
         Schema::dropIfExists('jobs');
