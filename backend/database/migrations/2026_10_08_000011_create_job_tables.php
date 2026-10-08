@@ -64,6 +64,62 @@ return new class extends Migration
             $table->softDeletes();
         });
 
+        Schema::create('job_skills', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('job_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('skill_id')->constrained()->cascadeOnDelete();
+            $table->boolean('is_required')->default(true);   // vs nice-to-have
+            $table->unsignedTinyInteger('min_years')->nullable();
+            $table->timestamps();
+            $table->unique(['job_id', 'skill_id']);
+        });
+
+        Schema::create('saved_jobs', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('job_id')->constrained()->cascadeOnDelete();
+            $table->timestamps();
+            $table->unique(['user_id', 'job_id']);
+        });
+
+        Schema::create('job_source_records', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('job_source_id')->constrained()->cascadeOnDelete();
+            $table->string('external_id', 190)->nullable();
+            $table->string('source_url', 600);
+            $table->jsonb('raw_payload')->nullable();
+            $table->enum('status', ['new', 'parsed', 'duplicate', 'rejected', 'error'])->default('new');
+            $table->foreignId('job_id')->nullable()->constrained()->nullOnDelete();
+            $table->text('error')->nullable();
+            $table->timestamp('fetched_at');
+            $table->timestamps();
+            $table->index(['job_source_id', 'status']);
+            $table->unique(['job_source_id', 'source_url'], 'job_source_records_unique_url');
+        });
+
+        // Moved here from migration ...000007: these reference jobs, which exists only now.
+        Schema::table('cv_versions', function (Blueprint $table) {
+            $table->foreignId('tailored_for_job_id')->nullable()->constrained('jobs')->nullOnDelete();
+        });
+
+        Schema::create('job_matches', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('candidate_profile_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('job_id')->constrained()->cascadeOnDelete();
+            $table->decimal('overall_score', 5, 2);          // 0..100 deterministic+semantic blend
+            $table->jsonb('component_scores');               // skills/experience/education/seniority/location/work_mode/preference/semantic
+            $table->jsonb('matched_skills');                 // ids + names
+            $table->jsonb('missing_skills');                 // required-but-missing
+            $table->jsonb('weak_areas');
+            $table->jsonb('hard_requirement_flags');         // e.g. experience_below_min
+            $table->string('recommendation', 240)->nullable();
+            $table->string('model_version', 80)->nullable();  // weights/config version used
+            $table->timestamp('computed_at');
+            $table->timestamps();
+            $table->unique(['candidate_profile_id', 'job_id']);
+            $table->index(['candidate_profile_id', 'overall_score']);
+        });
+
         // FIX: Only execute PostgreSQL full-text search parameters if driver is NOT sqlite
         if (DB::getDriverName() !== 'sqlite') {
             DB::statement("
@@ -102,6 +158,15 @@ return new class extends Migration
             DB::statement('ALTER TABLE jobs DROP COLUMN IF EXISTS search_vector;');
         }
 
+        Schema::dropIfExists('job_matches');
+
+        Schema::table('cv_versions', function (Blueprint $table) {
+            $table->dropConstrainedForeignId('tailored_for_job_id');
+        });
+
+        Schema::dropIfExists('job_source_records');
+        Schema::dropIfExists('saved_jobs');
+        Schema::dropIfExists('job_skills');
         Schema::dropIfExists('jobs');
         Schema::dropIfExists('job_sources');
     }

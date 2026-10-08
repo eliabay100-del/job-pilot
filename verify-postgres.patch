@@ -1,0 +1,219 @@
+From 8d883d141d1906d17b717f8372a7a842de9592cd Mon Sep 17 00:00:00 2001
+From: "qwen.ai[bot]" <qwenlm-intl@service.alibaba.com>
+Date: Thu, 8 Oct 2026 14:11:50 +0000
+Subject: [PATCH 1/3] Fix PostgreSQL migration order: move job_matches,
+ cv_versions FK, job_skills, saved_jobs, job_source_records into 000011 after
+ jobs; restore jsonb; QUEUE_CONNECTION=redis
+
+---
+ backend/.env.example                          |  2 +-
+ ...8_000007_create_cv_and_matching_tables.php | 25 ++-----
+ .../2026_10_08_000011_create_job_tables.php   | 65 +++++++++++++++++++
+ 3 files changed, 71 insertions(+), 21 deletions(-)
+
+diff --git a/backend/.env.example b/backend/.env.example
+index c0660ea..c931172 100644
+--- a/backend/.env.example
++++ b/backend/.env.example
+@@ -35,7 +35,7 @@ SESSION_DOMAIN=null
+ 
+ BROADCAST_CONNECTION=log
+ FILESYSTEM_DISK=local
+-QUEUE_CONNECTION=database
++QUEUE_CONNECTION=redis
+ 
+ CACHE_STORE=database
+ # CACHE_PREFIX=
+diff --git a/backend/database/migrations/2026_10_08_000007_create_cv_and_matching_tables.php b/backend/database/migrations/2026_10_08_000007_create_cv_and_matching_tables.php
+index 2eff818..50a6703 100644
+--- a/backend/database/migrations/2026_10_08_000007_create_cv_and_matching_tables.php
++++ b/backend/database/migrations/2026_10_08_000007_create_cv_and_matching_tables.php
+@@ -35,8 +35,9 @@ public function up(): void
+             $table->foreignId('document_id')->nullable()->constrained()->nullOnDelete();
+             $table->string('title', 160)->default('Main CV');
+             $table->enum('kind', ['uploaded', 'platform', 'tailored'])->default('uploaded');
+-            $table->foreignId('tailored_for_job_id')->nullable()->constrained('jobs')->nullOnDelete();
+-            $table->json('structured_data')->nullable();   // parsed CV JSON (source of truth after confirmation)
++            // tailored_for_job_id column + FK to jobs is added in migration ...000011,
++            // because the jobs table does not exist yet at this point (PostgreSQL enforces order).
++            $table->jsonb('structured_data')->nullable();   // parsed CV JSON (source of truth after confirmation)
+             $table->enum('parse_status', ['pending', 'parsing', 'needs_confirmation', 'confirmed', 'failed'])
+                 ->default('pending');
+             $table->decimal('parse_confidence', 3, 2)->nullable();
+@@ -46,23 +47,8 @@ public function up(): void
+             $table->index(['candidate_profile_id', 'parse_status']);
+         });
+ 
+-        Schema::create('job_matches', function (Blueprint $table) {
+-            $table->id();
+-            $table->foreignId('candidate_profile_id')->constrained()->cascadeOnDelete();
+-            $table->foreignId('job_id')->constrained()->cascadeOnDelete();
+-            $table->decimal('overall_score', 5, 2);          // 0..100 deterministic+semantic blend
+-            $table->json('component_scores');               // skills/experience/education/seniority/location/work_mode/preference/semantic
+-            $table->json('matched_skills');                 // ids + names
+-            $table->json('missing_skills');                 // required-but-missing
+-            $table->json('weak_areas');
+-            $table->json('hard_requirement_flags');         // e.g. experience_below_min
+-            $table->string('recommendation', 240)->nullable();
+-            $table->string('model_version', 80)->nullable();  // weights/config version used
+-            $table->timestamp('computed_at');
+-            $table->timestamps();
+-            $table->unique(['candidate_profile_id', 'job_id']);
+-            $table->index(['candidate_profile_id', 'overall_score']);
+-        });
++        // job_matches is created in migration ...000011 because it references jobs,
++        // which does not exist yet at this point (PostgreSQL enforces FK creation order).
+ 
+         if ($this->pgvectorAvailable()) {
+             DB::statement('ALTER TABLE skills ADD COLUMN IF NOT EXISTS embedding vector(1536);');
+@@ -84,7 +70,6 @@ public function down(): void
+             DB::statement('ALTER TABLE skills DROP COLUMN IF EXISTS embedding;');
+             DB::statement('ALTER TABLE candidate_profiles DROP COLUMN IF EXISTS embedding;');
+         }
+-        Schema::dropIfExists('job_matches');
+         Schema::dropIfExists('cv_versions');
+         Schema::dropIfExists('documents');
+     }
+diff --git a/backend/database/migrations/2026_10_08_000011_create_job_tables.php b/backend/database/migrations/2026_10_08_000011_create_job_tables.php
+index dba2989..0ed0d2c 100644
+--- a/backend/database/migrations/2026_10_08_000011_create_job_tables.php
++++ b/backend/database/migrations/2026_10_08_000011_create_job_tables.php
+@@ -64,6 +64,62 @@ public function up(): void
+             $table->softDeletes();
+         });
+ 
++        Schema::create('job_skills', function (Blueprint $table) {
++            $table->id();
++            $table->foreignId('job_id')->constrained()->cascadeOnDelete();
++            $table->foreignId('skill_id')->constrained()->cascadeOnDelete();
++            $table->boolean('is_required')->default(true);   // vs nice-to-have
++            $table->unsignedTinyInteger('min_years')->nullable();
++            $table->timestamps();
++            $table->unique(['job_id', 'skill_id']);
++        });
++
++        Schema::create('saved_jobs', function (Blueprint $table) {
++            $table->id();
++            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
++            $table->foreignId('job_id')->constrained()->cascadeOnDelete();
++            $table->timestamps();
++            $table->unique(['user_id', 'job_id']);
++        });
++
++        Schema::create('job_source_records', function (Blueprint $table) {
++            $table->id();
++            $table->foreignId('job_source_id')->constrained()->cascadeOnDelete();
++            $table->string('external_id', 190)->nullable();
++            $table->string('source_url', 600);
++            $table->jsonb('raw_payload')->nullable();
++            $table->enum('status', ['new', 'parsed', 'duplicate', 'rejected', 'error'])->default('new');
++            $table->foreignId('job_id')->nullable()->constrained()->nullOnDelete();
++            $table->text('error')->nullable();
++            $table->timestamp('fetched_at');
++            $table->timestamps();
++            $table->index(['job_source_id', 'status']);
++            $table->unique(['job_source_id', 'source_url'], 'job_source_records_unique_url');
++        });
++
++        // Moved here from migration ...000007: these reference jobs, which exists only now.
++        Schema::table('cv_versions', function (Blueprint $table) {
++            $table->foreignId('tailored_for_job_id')->nullable()->constrained('jobs')->nullOnDelete();
++        });
++
++        Schema::create('job_matches', function (Blueprint $table) {
++            $table->id();
++            $table->foreignId('candidate_profile_id')->constrained()->cascadeOnDelete();
++            $table->foreignId('job_id')->constrained()->cascadeOnDelete();
++            $table->decimal('overall_score', 5, 2);          // 0..100 deterministic+semantic blend
++            $table->jsonb('component_scores');               // skills/experience/education/seniority/location/work_mode/preference/semantic
++            $table->jsonb('matched_skills');                 // ids + names
++            $table->jsonb('missing_skills');                 // required-but-missing
++            $table->jsonb('weak_areas');
++            $table->jsonb('hard_requirement_flags');         // e.g. experience_below_min
++            $table->string('recommendation', 240)->nullable();
++            $table->string('model_version', 80)->nullable();  // weights/config version used
++            $table->timestamp('computed_at');
++            $table->timestamps();
++            $table->unique(['candidate_profile_id', 'job_id']);
++            $table->index(['candidate_profile_id', 'overall_score']);
++        });
++
+         // FIX: Only execute PostgreSQL full-text search parameters if driver is NOT sqlite
+         if (DB::getDriverName() !== 'sqlite') {
+             DB::statement("
+@@ -102,6 +158,15 @@ public function down(): void
+             DB::statement('ALTER TABLE jobs DROP COLUMN IF EXISTS search_vector;');
+         }
+ 
++        Schema::dropIfExists('job_matches');
++
++        Schema::table('cv_versions', function (Blueprint $table) {
++            $table->dropConstrainedForeignId('tailored_for_job_id');
++        });
++
++        Schema::dropIfExists('job_source_records');
++        Schema::dropIfExists('saved_jobs');
++        Schema::dropIfExists('job_skills');
+         Schema::dropIfExists('jobs');
+         Schema::dropIfExists('job_sources');
+     }
+-- 
+2.39.5
+
+
+From 5bdc1439f58dc388d5f0c4fee3dcbf8967420461 Mon Sep 17 00:00:00 2001
+From: "qwen.ai[bot]" <qwenlm-intl@service.alibaba.com>
+Date: Thu, 8 Oct 2026 14:12:00 +0000
+Subject: [PATCH 2/3] Remove stray artifact file
+ backend/phase-1-foundation-fixed (accidental SHA dump)
+
+---
+ backend/phase-1-foundation-fixed | 1 -
+ 1 file changed, 1 deletion(-)
+ delete mode 100644 backend/phase-1-foundation-fixed
+
+diff --git a/backend/phase-1-foundation-fixed b/backend/phase-1-foundation-fixed
+deleted file mode 100644
+index 6c9232e..0000000
+--- a/backend/phase-1-foundation-fixed
++++ /dev/null
+@@ -1 +0,0 @@
+-b4f9927bb92d2121085fcb932e1ab53141556aa1
+-- 
+2.39.5
+
+
+From 2d3dfdcdc1c4aa58d9261b306c7fbef7200fa4fc Mon Sep 17 00:00:00 2001
+From: "qwen.ai[bot]" <qwenlm-intl@service.alibaba.com>
+Date: Thu, 8 Oct 2026 14:12:00 +0000
+Subject: [PATCH 3/3] Update HANDOFF with PostgreSQL verification results
+
+---
+ docs/HANDOFF.md | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+ create mode 100644 docs/HANDOFF.md
+
+diff --git a/docs/HANDOFF.md b/docs/HANDOFF.md
+new file mode 100644
+index 0000000..f18d28d
+--- /dev/null
++++ b/docs/HANDOFF.md
+@@ -0,0 +1,15 @@
++# Handoff — verify-postgres session (2026-10-08)
++
++## Done
++- Fresh branch `verify-postgres` from main (ae818cc).
++- Verified migrations on **native PostgreSQL 15** (local, no Docker), db `jobpilot`, user `jobpilot`.
++- Fixed the real FK-order bug merged in PR #4: migration 000007 referenced `jobs` (created in 000011). Moved `job_matches`, `cv_versions.tailored_for_job_id` FK, and restored dropped tables `job_skills`, `saved_jobs`, `job_source_records` into 000011 with matching down() reversals. Restored jsonb columns. No schema weakened (rule 2 respected; see report).
++- `.env.example`: QUEUE_CONNECTION=redis. Removed stray `backend/phase-1-foundation-fixed`.
++- migrate:fresh --force: all 13 DONE. rollback + remigrate: OK. \dt = 77 tables; job_skills/saved_jobs/job_source_records/job_matches/queue_jobs/jobs all present. pgvector absent locally; conditional guards work.
++- php artisan test: 2 passed (baseline only).
++
++## Broken / caveats
++- The previously reported auth API, policies, 37 models, seeders are NOT on main (lost in earlier rewrites). Only 5 models exist. Phase 1 Steps 2b-2g must be redone on top of this branch.
++
++## Next step
++Re-run Step 2a (models for all 77-table schema), then 2b policies, 2c Sanctum auth API, tests, seeders. Verify every merge on PostgreSQL, never SQLite.
+-- 
+2.39.5
+

@@ -35,8 +35,9 @@ return new class extends Migration
             $table->foreignId('document_id')->nullable()->constrained()->nullOnDelete();
             $table->string('title', 160)->default('Main CV');
             $table->enum('kind', ['uploaded', 'platform', 'tailored'])->default('uploaded');
-            $table->foreignId('tailored_for_job_id')->nullable()->constrained('jobs')->nullOnDelete();
-            $table->json('structured_data')->nullable();   // parsed CV JSON (source of truth after confirmation)
+            // tailored_for_job_id column + FK to jobs is added in migration ...000011,
+            // because the jobs table does not exist yet at this point (PostgreSQL enforces order).
+            $table->jsonb('structured_data')->nullable();   // parsed CV JSON (source of truth after confirmation)
             $table->enum('parse_status', ['pending', 'parsing', 'needs_confirmation', 'confirmed', 'failed'])
                 ->default('pending');
             $table->decimal('parse_confidence', 3, 2)->nullable();
@@ -46,23 +47,8 @@ return new class extends Migration
             $table->index(['candidate_profile_id', 'parse_status']);
         });
 
-        Schema::create('job_matches', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('candidate_profile_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('job_id')->constrained()->cascadeOnDelete();
-            $table->decimal('overall_score', 5, 2);          // 0..100 deterministic+semantic blend
-            $table->json('component_scores');               // skills/experience/education/seniority/location/work_mode/preference/semantic
-            $table->json('matched_skills');                 // ids + names
-            $table->json('missing_skills');                 // required-but-missing
-            $table->json('weak_areas');
-            $table->json('hard_requirement_flags');         // e.g. experience_below_min
-            $table->string('recommendation', 240)->nullable();
-            $table->string('model_version', 80)->nullable();  // weights/config version used
-            $table->timestamp('computed_at');
-            $table->timestamps();
-            $table->unique(['candidate_profile_id', 'job_id']);
-            $table->index(['candidate_profile_id', 'overall_score']);
-        });
+        // job_matches is created in migration ...000011 because it references jobs,
+        // which does not exist yet at this point (PostgreSQL enforces FK creation order).
 
         if ($this->pgvectorAvailable()) {
             DB::statement('ALTER TABLE skills ADD COLUMN IF NOT EXISTS embedding vector(1536);');
@@ -84,7 +70,6 @@ return new class extends Migration
             DB::statement('ALTER TABLE skills DROP COLUMN IF EXISTS embedding;');
             DB::statement('ALTER TABLE candidate_profiles DROP COLUMN IF EXISTS embedding;');
         }
-        Schema::dropIfExists('job_matches');
         Schema::dropIfExists('cv_versions');
         Schema::dropIfExists('documents');
     }
