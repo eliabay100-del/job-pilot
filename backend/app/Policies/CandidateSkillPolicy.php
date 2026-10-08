@@ -14,6 +14,11 @@ class CandidateSkillPolicy
         return $candidateSkill->candidateProfile->user_id === $user->id;
     }
 
+    public function update(User $user, CandidateSkill $candidateSkill): bool
+    {
+        return $this->view($user, $candidateSkill);
+    }
+
     public function delete(User $user, CandidateSkill $candidateSkill): bool
     {
         return $this->view($user, $candidateSkill);

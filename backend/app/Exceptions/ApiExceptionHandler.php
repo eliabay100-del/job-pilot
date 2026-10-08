@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Exceptions;
 
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
@@ -48,6 +50,13 @@ class ApiExceptionHandler
                 'NOT_FOUND',
                 null,
             ],
+            // Gate/policy denials reach us as AccessDeniedHttpException (see Handler::prepareException).
+            $e instanceof AccessDeniedHttpException, $e instanceof AuthorizationException => [
+                403,
+                'This action is unauthorized.',
+                'FORBIDDEN',
+                null,
+            ],
             $e instanceof HttpExceptionInterface => [
                 $e->getStatusCode(),
                 $e->getMessage() !== '' ? $e->getMessage() : 'Request failed.',
@@ -76,7 +85,11 @@ class ApiExceptionHandler
         ], $status);
     }
 
-    private static function isApiRequest(Request $request): bool
+    /**
+     * Shared with bootstrap/app.php so the framework's own JSON decisions use
+     * the same rule as this handler.
+     */
+    public static function isApiRequest(Request $request): bool
     {
         return $request->is('api/*') || $request->expectsJson();
     }

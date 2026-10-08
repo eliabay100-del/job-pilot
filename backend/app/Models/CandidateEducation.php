@@ -12,6 +12,10 @@ class CandidateEducation extends Model
 {
     use HasFactory;
 
+    // Laravel's inflector treats "education" as uncountable and would resolve
+    // this to "candidate_education".
+    protected $table = 'candidate_educations';
+
     protected $fillable = [
         'candidate_profile_id',
         'institution_id',

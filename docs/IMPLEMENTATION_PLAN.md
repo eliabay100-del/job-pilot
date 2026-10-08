@@ -5,8 +5,8 @@ A feature is Complete only when DB, backend, API, frontend, validation, authoriz
 
 | Phase | Feature | Status | Backend | Frontend | Database | Tests | Docs | Depends on |
 |---|---|---|---|---|---|---|---|---|
-| 1 | Foundation: Docker, auth, roles, API structure, design system | In Progress | In Progress | In Progress | In Progress | In Progress | In Progress | - |
-| 2 | Candidate platform: profile, education, experience, skills, CV, documents | Not Started | - | - | - | - | - | 1 |
+| 1 | Foundation: Docker, auth, roles, API structure, design system | In Progress | Complete | Complete | Complete | Complete | Complete | - |
+| 2 | Candidate platform: profile, education, experience, skills, CV, documents | Complete | Complete | Complete | Complete | Complete | Complete | 1 |
 | 3 | Jobs: companies, jobs, categories, sources, ingestion, search, filters | Not Started | - | - | - | - | - | 1 |
 | 4 | Matching: deterministic, embeddings, score, explanation | Not Started | - | - | - | - | - | 2, 3 |
 | 5 | AI: CV parser, tailor, cover letter, assistant, interview prep | Not Started | - | - | - | - | - | 2, 4 |
@@ -17,6 +17,15 @@ A feature is Complete only when DB, backend, API, frontend, validation, authoriz
 | 10 | University: institutions, cohorts, career center, analytics | Not Started | - | - | - | - | - | 2 |
 | 11 | Integrations: Gmail, GitHub, more payment providers | Not Started | - | - | - | - | - | 6, 8 |
 | 12 | Production hardening: security, perf, a11y, AI eval, backups, monitoring | Not Started | - | - | - | - | - | all |
+
+Phase 1 open item: `docker-compose.yml` still defines infrastructure only (postgres, redis,
+minio, mailpit). The `backend` and `frontend` app services promised by the Phase 1 scope are
+not written yet — local development runs on Herd PHP plus the portable PostgreSQL in
+`infra/setup-portable-postgres.sh`. Add and verify the app containers before closing Phase 1.
+
+Phase 2 was verified end-to-end on PostgreSQL (40 feature tests, 191 assertions) and in the
+browser against the live API: login, dashboard, profile edit, CV upload/download/delete,
+logout and the auth guard. See `docs/HANDOFF.md`.
 
 ## MVP scope (from spec section 65)
 

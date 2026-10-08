@@ -9,6 +9,7 @@ use App\Models\CandidateLanguage;
 use App\Models\CandidateProfile;
 use App\Models\CandidateProject;
 use App\Models\CandidateSkill;
+use App\Models\CvVersion;
 use App\Models\Document;
 use App\Policies\CandidateCertificationPolicy;
 use App\Policies\CandidateEducationPolicy;
@@ -17,8 +18,10 @@ use App\Policies\CandidateLanguagePolicy;
 use App\Policies\CandidateProfilePolicy;
 use App\Policies\CandidateProjectPolicy;
 use App\Policies\CandidateSkillPolicy;
+use App\Policies\CvVersionPolicy;
 use App\Policies\DocumentPolicy;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -30,6 +33,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->registerRouteConstraints();
+
         Gate::policy(CandidateProfile::class, CandidateProfilePolicy::class);
         Gate::policy(CandidateEducation::class, CandidateEducationPolicy::class);
         Gate::policy(CandidateExperience::class, CandidateExperiencePolicy::class);
@@ -38,5 +43,30 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(CandidateCertification::class, CandidateCertificationPolicy::class);
         Gate::policy(CandidateLanguage::class, CandidateLanguagePolicy::class);
         Gate::policy(Document::class, DocumentPolicy::class);
+        Gate::policy(CvVersion::class, CvVersionPolicy::class);
+    }
+
+    /**
+     * Every model-bound route parameter is a bigint primary key. Without these
+     * patterns a non-numeric segment reaches Eloquent and PostgreSQL fails with
+     * "invalid input syntax for type bigint" — a 500 instead of a 404.
+     */
+    private function registerRouteConstraints(): void
+    {
+        $numeric = [
+            'profile',
+            'cv',
+            'document',
+            'education',
+            'experience',
+            'skill',
+            'project',
+            'certification',
+            'language',
+        ];
+
+        foreach ($numeric as $parameter) {
+            Route::pattern($parameter, '[0-9]+');
+        }
     }
 }

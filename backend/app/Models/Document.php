@@ -29,6 +29,8 @@ class Document extends Model
     protected function casts(): array
     {
         return [
+            'uploaded_by' => 'integer',
+            'size_bytes' => 'integer',
             'scanned_at' => 'datetime',
         ];
     }

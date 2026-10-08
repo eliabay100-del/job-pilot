@@ -20,7 +20,6 @@ class CandidateCertification extends Model
         'issued_at',
         'expires_at',
         'url',
-        'description',
     ];
 
     protected function casts(): array

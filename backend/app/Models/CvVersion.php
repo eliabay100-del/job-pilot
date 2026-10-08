@@ -28,6 +28,9 @@ class CvVersion extends Model
     protected function casts(): array
     {
         return [
+            'candidate_profile_id' => 'integer',
+            'document_id' => 'integer',
+            'version_number' => 'integer',
             'structured_data' => 'array',
             'parse_confidence' => 'decimal:2',
         ];
