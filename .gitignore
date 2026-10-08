@@ -1,28 +1,24 @@
-# env / secrets
+# Laravel/PHP specific ignores
+/vendor/
+/public/hot
+/public/storage
+/storage/*.key
+/storage/logs/*
+!/storage/logs/.gitignore
+/bootstrap/cache/*.php
+!/bootstrap/cache/.gitignore
+/config/database.php
+
+# Environment files
 .env
-.env.*
-!.env.example
-*.pem
-*.key
-
-# OS / editor
-.DS_Store
-.idea/
-.vscode/
-
-# Laravel
-backend/vendor/
-backend/storage/*.key
-backend/storage/logs/*
-backend/bootstrap/cache/*
-!backend/bootstrap/cache/.gitignore
-
-# Node / Next.js
-node_modules/
-frontend/.next/
-frontend/out/
-npm-debug.log*
-
-# Misc
-coverage/
-*.log
+.env.backup
+.env.production
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+auth.json
+npm-debug.log
+yarn-error.log
+/.fleet
+/.idea
+/.vscode
