@@ -1,0 +1,28 @@
+# env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Laravel
+backend/vendor/
+backend/storage/*.key
+backend/storage/logs/*
+backend/bootstrap/cache/*
+!backend/bootstrap/cache/.gitignore
+
+# Node / Next.js
+node_modules/
+frontend/.next/
+frontend/out/
+npm-debug.log*
+
+# Misc
+coverage/
+*.log
