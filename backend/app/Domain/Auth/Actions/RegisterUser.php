@@ -59,6 +59,9 @@ class RegisterUser
                 $user->candidateProfile()->create([]);
             }
 
+            // Email verification is required for all accounts (spec: registration flow).
+            $user->sendEmailVerificationNotification();
+
             return $user->fresh();
         });
     }

@@ -118,6 +118,9 @@ class AuthenticationTest extends TestCase
         ])->json('data.token');
 
         $this->withToken($token)->postJson('/api/v1/auth/logout')->assertOk();
+        // The test client keeps the resolved user in guards between requests;
+        // forget them so /me must re-authenticate against the (now deleted) token.
+        auth()->forgetGuards();
         $this->withToken($token)->getJson('/api/v1/auth/me')->assertStatus(401);
     }
 

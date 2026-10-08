@@ -53,7 +53,12 @@ class AuthController extends Controller
     {
         /** @var \App\Models\User $user */
         $user = $request->user();
-        $user->currentAccessToken()?->delete();
+        // Delete by token id directly: within the same request lifecycle, Sanctum's
+        // in-memory currentAccessToken can make relationship-level deletes match 0 rows.
+        $token = $user->currentAccessToken();
+        if ($token !== null) {
+            \Laravel\Sanctum\PersonalAccessToken::whereKey($token->id)->delete();
+        }
 
         return new JsonResponse([
             'success' => true,
