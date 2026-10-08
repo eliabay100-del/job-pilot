@@ -24,24 +24,22 @@ return new class extends Migration
                 'interview', 'final_interview', 'offer', 'hired', 'rejected', 'withdrawn',
             ])->default('applied');
             $table->text('cover_letter')->nullable();
-            $table->foreignId('cv_version_id')->nullable(); // FK added after cv_versions exists
+            
+            // FIX: Merged the column definition and the foreign key link here directly 
+            // inside the create block. This eliminates the duplicate alteration block entirely.
+            $table->foreignId('cv_version_id')->nullable()->constrained('cv_versions')->nullOnDelete();
+            
             $table->decimal('match_score', 5, 2)->nullable(); // snapshot at apply time
             $table->string('apply_source', 24)->default('platform'); // platform|external|manual
             $table->string('external_apply_url')->nullable();
             $table->timestamps();
+            
             $table->unique(['job_id', 'candidate_profile_id']);
             $table->index(['company_id', 'status']);
             $table->index(['candidate_profile_id', 'status']);
-        });
-
-        // applications.cv_version_id lives here (not in migration ...000007) because
-        // the applications table is created by this migration; cv_versions already
-        // exists (created in ...000007), so the FK can be attached safely now.
-        Schema::table('applications', function (Blueprint $table) {
-            $table->foreignId('cv_version_id')->nullable()
-                ->constrained('cv_versions')->nullOnDelete();
             $table->index('cv_version_id');
         });
+
         Schema::create('application_events', function (Blueprint $table) {
             $table->id();
             $table->foreignId('application_id')->constrained()->cascadeOnDelete();
@@ -108,7 +106,8 @@ return new class extends Migration
             $table->enum('mode', ['in_person', 'phone', 'video', 'other'])->default('video');
             $table->string('location_or_link', 500)->nullable();
             $table->timestamp('scheduled_at')->nullable();
-            $table->jsonb('panel_user_ids')->nullable();
+            // FIX: Changed jsonb to json for standard local SQLite engine compatibility
+            $table->json('panel_user_ids')->nullable();
             $table->text('notes')->nullable();
             $table->enum('outcome', ['pending', 'passed', 'failed', 'no_show'])->default('pending');
             $table->timestamps();
