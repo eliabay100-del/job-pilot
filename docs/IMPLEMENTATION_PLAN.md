@@ -5,7 +5,7 @@ A feature is Complete only when DB, backend, API, frontend, validation, authoriz
 
 | Phase | Feature | Status | Backend | Frontend | Database | Tests | Docs | Depends on |
 |---|---|---|---|---|---|---|---|---|
-| 1 | Foundation: Docker, auth, roles, API structure, design system | Not Started | - | - | - | - | - | - |
+| 1 | Foundation: Docker, auth, roles, API structure, design system | In Progress | In Progress | In Progress | In Progress | In Progress | In Progress | - |
 | 2 | Candidate platform: profile, education, experience, skills, CV, documents | Not Started | - | - | - | - | - | 1 |
 | 3 | Jobs: companies, jobs, categories, sources, ingestion, search, filters | Not Started | - | - | - | - | - | 1 |
 | 4 | Matching: deterministic, embeddings, score, explanation | Not Started | - | - | - | - | - | 2, 3 |
