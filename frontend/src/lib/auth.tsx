@@ -37,15 +37,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!getToken()) {
-      setLoading(false);
-      return;
-    }
-    api
-      .get<User>("/auth/me")
-      .then(setUser)
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
+    const token = getToken();
+    const session = token
+      ? api
+          .get<User>("/auth/me")
+          .then(setUser)
+          .catch(() => setUser(null))
+      : Promise.resolve();
+
+    void session.finally(() => setLoading(false));
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {

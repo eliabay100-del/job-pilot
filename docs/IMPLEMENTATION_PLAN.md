@@ -7,7 +7,7 @@ A feature is Complete only when DB, backend, API, frontend, validation, authoriz
 |---|---|---|---|---|---|---|---|---|
 | 1 | Foundation: Docker, auth, roles, API structure, design system | In Progress | Complete | Complete | Complete | Complete | Complete | - |
 | 2 | Candidate platform: profile, education, experience, skills, CV, documents | Complete | Complete | Complete | Complete | Complete | Complete | 1 |
-| 3 | Jobs: companies, jobs, categories, sources, ingestion, search, filters | Not Started | - | - | - | - | - | 1 |
+| 3 | Jobs: companies, jobs, categories, sources, ingestion, search, filters | Complete | Complete | Complete | Complete | Complete | Complete | 1 |
 | 4 | Matching: deterministic, embeddings, score, explanation | Not Started | - | - | - | - | - | 2, 3 |
 | 5 | AI: CV parser, tailor, cover letter, assistant, interview prep | Not Started | - | - | - | - | - | 2, 4 |
 | 6 | Applications: save, apply, tracker, reminders | Not Started | - | - | - | - | - | 3 |
@@ -26,6 +26,13 @@ not written yet — local development runs on Herd PHP plus the portable Postgre
 Phase 2 was verified end-to-end on PostgreSQL (40 feature tests, 191 assertions) and in the
 browser against the live API: login, dashboard, profile edit, CV upload/download/delete,
 logout and the auth guard. See `docs/HANDOFF.md`.
+
+Phase 3 was verified end-to-end on PostgreSQL (65 feature tests, 289 assertions) and in the
+browser: full-text keyword search, combined filters, sorting, pagination, save/unsave with the
+saved-jobs list, job detail with company profile, and graceful 403/404 handling. The CSV
+ingestion pipeline (`php artisan jobs:ingest`) was exercised by tests for the publish-vs-hold
+rule, fingerprint dedupe and mirror-URL collapse. Employer posting and the moderation queue for
+held listings remain in Phases 7 and 9.
 
 ## MVP scope (from spec section 65)
 

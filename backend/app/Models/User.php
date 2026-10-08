@@ -8,6 +8,7 @@ use App\Enums\UserRole;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -53,6 +54,16 @@ class User extends Authenticatable implements MustVerifyEmail
     public function documents(): HasMany
     {
         return $this->hasMany(Document::class, 'uploaded_by');
+    }
+
+    public function savedJobs(): BelongsToMany
+    {
+        return $this->belongsToMany(Job::class, 'saved_jobs')->withTimestamps();
+    }
+
+    public function companyMemberships(): HasMany
+    {
+        return $this->hasMany(CompanyUser::class);
     }
 
     public function ensureCandidateProfile(): CandidateProfile

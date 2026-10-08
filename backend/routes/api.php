@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CertificationController;
+use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\CvController;
 use App\Http\Controllers\Api\V1\DocumentController;
 use App\Http\Controllers\Api\V1\EducationController;
 use App\Http\Controllers\Api\V1\EmailVerificationController;
 use App\Http\Controllers\Api\V1\ExperienceController;
+use App\Http\Controllers\Api\V1\JobController;
 use App\Http\Controllers\Api\V1\LanguageController;
 use App\Http\Controllers\Api\V1\PreferenceController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\ProjectController;
+use App\Http\Controllers\Api\V1\SavedJobController;
 use App\Http\Controllers\Api\V1\SkillController;
 use App\Http\Controllers\Api\V1\TaxonomyController;
 use Illuminate\Support\Facades\Route;
@@ -87,5 +90,16 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::get('job-categories', [TaxonomyController::class, 'jobCategories'])->name('job-categories');
             Route::get('job-roles', [TaxonomyController::class, 'jobRoles'])->name('job-roles');
         });
+
+        /*
+        | Phase 3 — Jobs (SPEC sections 5, 16-18). Reads are limited to published
+        | jobs by JobPolicy; employer posting/management arrives in Phase 9.
+        */
+        Route::get('jobs', [JobController::class, 'index'])->name('jobs.index');
+        Route::get('jobs/{job}', [JobController::class, 'show'])->name('jobs.show');
+        Route::post('jobs/{job}/save', [SavedJobController::class, 'store'])->name('jobs.save');
+        Route::delete('jobs/{job}/save', [SavedJobController::class, 'destroy'])->name('jobs.unsave');
+        Route::get('saved-jobs', [SavedJobController::class, 'index'])->name('saved-jobs.index');
+        Route::get('companies/{company}', [CompanyController::class, 'show'])->name('companies.show');
     });
 });

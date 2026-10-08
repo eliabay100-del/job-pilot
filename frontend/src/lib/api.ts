@@ -31,7 +31,19 @@ type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   formData?: FormData;
+  /** Return the whole envelope instead of unwrapping `data` (paginated lists). */
+  unwrap?: boolean;
 };
+
+export type PageMeta = {
+  current_page: number;
+  per_page: number;
+  total: number;
+  last_page: number;
+  has_more_pages: boolean;
+};
+
+export type Paginated<T> = { data: T[]; meta: PageMeta };
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
@@ -66,11 +78,14 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     );
   }
 
+  if (options.unwrap) return json as T;
+
   return (json?.data !== undefined ? json.data : json) as T;
 }
 
 export const api = {
   get: <T>(path: string) => request<T>(path),
+  list: <T>(path: string) => request<Paginated<T>>(path, { unwrap: true }),
   post: <T>(path: string, body?: unknown) => request<T>(path, { method: "POST", body }),
   put: <T>(path: string, body?: unknown) => request<T>(path, { method: "PUT", body }),
   del: <T>(path: string) => request<T>(path, { method: "DELETE" }),

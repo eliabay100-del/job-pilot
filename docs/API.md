@@ -20,7 +20,9 @@ Base URL: `/api/v1`. Auth: Bearer token (Laravel Sanctum). This document is fill
 ```
 
 Machine codes: `VALIDATION_FAILED` (422), `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `HTTP_ERROR` (other 4xx), `INTERNAL_ERROR` (500).
-Authorization failures return 403. Collection endpoints paginate (`?page=`), taxonomies support `?q=` search and `?limit=`.
+Authorization failures return 403. Collection endpoints paginate (`?page=`) and include a `meta`
+block (`current_page`, `per_page`, `total`, `last_page`, `has_more_pages`); taxonomies support
+`?q=` search and `?limit=`.
 
 ## Auth (Phase 1)
 
@@ -92,6 +94,51 @@ Authenticated lookups for typeaheads/selects. `skills` and `institutions` suppor
 | `/taxonomy/job-categories` | Active categories. |
 | `/taxonomy/job-roles` | Active roles, optional `?job_category_id=`. |
 
+## Jobs (Phase 3)
+
+All routes require Bearer auth. Reads are limited to published, unexpired jobs by `JobPolicy`;
+an author or an active company member can also view their own unpublished listings (403 otherwise).
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/jobs` | Search published jobs. Returns `{ success, data: JobSummary[], meta }`. |
+| GET | `/jobs/{id}` | One job with description blocks, taxonomy refs, `source_url`, `views_count` (incremented per view) and `is_saved`. |
+| POST | `/jobs/{id}/save` | Save/bookmark. Idempotent: 201 on first save, 200 afterwards. |
+| DELETE | `/jobs/{id}/save` | Remove the bookmark. |
+| GET | `/saved-jobs` | Own saved jobs (published only; expired listings drop out automatically). |
+| GET | `/companies/{slug}` | Company profile with `jobs_count` of published listings. |
+
+### Search parameters (GET /jobs)
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `q` | string | Full-text search over the generated `search_vector` (`plainto_tsquery('simple', …)`, ts_rank ordering). |
+| `location` | string | Case-insensitive match on city or region. |
+| `company` | string | Case-insensitive match on company name. |
+| `work_modes[]`, `employment_types[]`, `seniorities[]` | enum lists | Laravel array params (`work_modes[]=remote`). |
+| `salary_min`, `salary_max` | int | Floor matches when `salary_max_monthly >= salary_min` or the salary is negotiable; ceiling matches when `salary_min_monthly <= salary_max` or is null. |
+| `experience_years` | int | Keeps jobs whose min/max band contains the value (null bounds always pass). |
+| `industry_id`, `job_category_id`, `job_role_id` | int | Industry also matches through the company's industry. |
+| `education_level_id` | int | Candidate level: keeps jobs whose `min_education_level` rank is ≤ the given level's rank (or null). |
+| `skill_ids[]` | int list | Job must carry at least one of the skills. |
+| `posted_within_days` | int | `published_at` within N days. |
+| `deadline_before` | date | `application_deadline` on or before the date. |
+| `sort` | `relevance\|newest\|salary_desc\|deadline` | Default `relevance` (falls back to newest without `q`). |
+| `page`, `per_page` | int | `per_page` 1–50, default 15. |
+
+`meta` carries `current_page`, `per_page`, `total`, `last_page`, `has_more_pages`. Invalid filter
+values return 422 `VALIDATION_FAILED` with per-field errors.
+
+### Ingestion (server-side, SPEC 16–17)
+
+`php artisan jobs:ingest {source=csv} --path=…` fetches a feed through a source adapter
+(`CsvJobSourceAdapter`), normalizes and validates each row, deduplicates by content fingerprint
+(sha256 of company + title + city + first 500 chars of the cleaned description) and publishes:
+valid rows for already-known companies go straight to `published` with `risk_level=low`; rows that
+would create a brand-new company are held at `pending_review` with `risk_level=review` for the
+Phase 7 moderation queue. Every run is recorded in `job_source_records`
+(`parsed` / `duplicate` / `rejected` with the validation error).
+
 ## Seed data (development)
 
-`php artisan db:seed` runs `TaxonomySeeder` (skills/aliases, industries, categories, roles, education levels, institutions) and `DemoCandidateSeeder` (demo job seeker: `demo@jobpilot.test` / `Password!123` with a filled profile).
+`php artisan db:seed` runs `TaxonomySeeder` (skills/aliases, industries, categories, roles, education levels, institutions), `DemoCandidateSeeder` (demo job seeker: `demo@jobpilot.test` / `Password!123` with a filled profile) and `DemoJobsSeeder` (four verified companies and eleven jobs across categories, seniorities and cities, including one expired and one held-for-review listing).

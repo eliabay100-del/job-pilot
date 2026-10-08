@@ -94,8 +94,29 @@ export default function DashboardPage() {
 
       <Card>
         <SectionHeader
+          title="Find your next role"
+          description="Search published vacancies by keyword, location, salary and skills, then save the ones that fit."
+        />
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/jobs"
+            className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
+          >
+            Browse jobs
+          </Link>
+          <Link
+            href="/dashboard/saved"
+            className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+          >
+            Saved jobs
+          </Link>
+        </div>
+      </Card>
+
+      <Card>
+        <SectionHeader
           title="Coming next"
-          description="Job search, AI matching with explanations, and application tracking land in the next phases."
+          description="AI matching with explanations, applications, and employer tools land in the next phases."
         />
         <p className="text-sm text-zinc-500">
           Finish your profile and upload your CV so matching has everything it needs.
