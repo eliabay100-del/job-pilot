@@ -29,7 +29,8 @@ return new class extends Migration
             $table->foreignId('ai_conversation_id')->constrained()->cascadeOnDelete();
             $table->enum('role', ['user', 'assistant', 'system']);
             $table->longText('content');
-            $table->jsonb('citations')->nullable();   // platform data referenced (tool-based retrieval)
+            // FIX: Changed jsonb to json for universal database engine mapping
+            $table->json('citations')->nullable();   // platform data referenced (tool-based retrieval)
             $table->unsignedInteger('tokens_in')->nullable();
             $table->unsignedInteger('tokens_out')->nullable();
             $table->timestamps();
@@ -49,7 +50,8 @@ return new class extends Migration
             $table->boolean('success')->default(true);
             $table->string('error_code', 64)->nullable();
             $table->unsignedInteger('latency_ms')->nullable();
-            $table->jsonb('context_refs')->nullable(); // ids of jobs/cvs used (auditability)
+            // FIX: Changed jsonb to json for universal database engine mapping
+            $table->json('context_refs')->nullable(); // ids of jobs/cvs used (auditability)
             $table->timestamps();
             $table->index(['user_id', 'created_at']);
             $table->index(['operation', 'created_at']);
@@ -57,7 +59,8 @@ return new class extends Migration
 
         Schema::create('ai_transactions', function (Blueprint $table) {
             $table->id();
-            $table->uuid('uuid')->unique()->default(DB::raw('gen_random_uuid()'));
+            // FIX: Changed back to standard native Laravel UUID blueprint to strip native pgSQL generation
+            $table->uuid('uuid')->unique();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('operation', 64);
             $table->unsignedInteger('credits_requested');
