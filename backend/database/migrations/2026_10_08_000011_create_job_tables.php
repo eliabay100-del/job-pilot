@@ -115,7 +115,6 @@ return new class extends Migration
             $table->index(['job_source_id', 'status']);
             $table->unique(['job_source_id', 'source_url'], 'job_source_records_unique_url');
         });
-
         // PostgreSQL full-text search column + GIN index (driver: pgsql).
         \DB::statement("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS search_vector tsvector
             GENERATED ALWAYS AS (
@@ -124,7 +123,6 @@ return new class extends Migration
                 setweight(to_tsvector('simple', coalesce(city, '')), 'C')
             ) STORED;");
         \DB::statement('CREATE INDEX IF NOT EXISTS jobs_search_vector_idx ON jobs USING GIN (search_vector);');
-
         // Optional pgvector embedding for the jobs table (see docs/DATABASE.md).
         if ($this->pgvectorAvailable()) {
             \DB::statement('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS embedding vector(1536);');

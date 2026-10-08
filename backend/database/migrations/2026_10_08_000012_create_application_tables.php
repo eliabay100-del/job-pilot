@@ -24,6 +24,7 @@ return new class extends Migration
                 'interview', 'final_interview', 'offer', 'hired', 'rejected', 'withdrawn',
             ])->default('applied');
             $table->text('cover_letter')->nullable();
+            $table->foreignId('cv_version_id')->nullable(); // FK added after cv_versions exists
             $table->decimal('match_score', 5, 2)->nullable(); // snapshot at apply time
             $table->string('apply_source', 24)->default('platform'); // platform|external|manual
             $table->string('external_apply_url')->nullable();
@@ -41,7 +42,6 @@ return new class extends Migration
                 ->constrained('cv_versions')->nullOnDelete();
             $table->index('cv_version_id');
         });
-
         Schema::create('application_events', function (Blueprint $table) {
             $table->id();
             $table->foreignId('application_id')->constrained()->cascadeOnDelete();
