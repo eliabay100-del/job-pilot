@@ -6,12 +6,15 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\AI\Actions\ParseCv;
 use App\Domain\AI\Actions\ConfirmCvExtraction;
+use App\Domain\AI\Actions\GenerateCoverLetter;
 use App\Domain\AI\Actions\TailorCv;
 use App\Domain\CV\Actions\StoreUploadedFile;
 use App\Domain\CV\Resources\CvVersionResource;
+use App\Http\Resources\CoverLetterResource;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CV\UploadCvRequest;
 use App\Http\Requests\CV\ConfirmCvRequest;
+use App\Http\Requests\CV\GenerateCoverLetterRequest;
 use App\Http\Requests\CV\TailorCvRequest;
 use App\Models\Job;
 use App\Models\CvVersion;
@@ -29,6 +32,7 @@ class CvController extends Controller
         private readonly ParseCv $parseCv,
         private readonly ConfirmCvExtraction $confirmCvExtraction,
         private readonly TailorCv $tailorCv,
+        private readonly GenerateCoverLetter $generateCoverLetter,
     )
     {
     }
@@ -90,6 +94,15 @@ class CvController extends Controller
 
         return (new CvVersionResource($this->tailorCv->handle($cv, $job)))
             ->response()->setStatusCode(200);
+    }
+
+    public function coverLetter(GenerateCoverLetterRequest $request, CvVersion $cv): CoverLetterResource
+    {
+        Gate::authorize('update', $cv);
+        $job = Job::findOrFail($request->validated('target_job_id'));
+        Gate::authorize('view', $job);
+
+        return new CoverLetterResource($this->generateCoverLetter->handle($cv, $job));
     }
 
     public function download(Request $request, CvVersion $cv): StreamedResponse

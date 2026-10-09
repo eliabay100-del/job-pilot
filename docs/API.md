@@ -70,6 +70,7 @@ All routes require Bearer auth. Ownership is enforced by policies — users only
 | POST | `/cv/{id}/parse` | Extract readable, labeled CV fields into `structured_data` with `parse_status=needs_confirmation`; never maps fields into the candidate profile automatically. Rate limited. |
 | POST | `/cv/{id}/confirm` | Confirm selected extracted fields with `{ "fields": ["name", "location", "summary"] }`; maps only those supported profile fields and marks the version `confirmed`. Account email and phone are never changed. Rate limited. |
 | POST | `/cv/{id}/tailor` | Create a traceable `kind=tailored` version for `{ "target_job_id": 123 }`; reorders existing profile skills and experience only. Rate limited. |
+| POST | `/cv/{id}/cover-letter` | Generate a reviewable draft for `{ "target_job_id": 123 }`; stores source CV, job, provider, model, prompt version, and usage references. Rate limited. |
 | GET | `/cv/{id}/download` | Access-controlled download of the backing file. |
 | DELETE | `/cv/{id}` | Delete version; backing file deleted when unreferenced. |
 

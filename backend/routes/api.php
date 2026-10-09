@@ -80,6 +80,9 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::post('cv/{cv}/tailor', [CvController::class, 'tailor'])
             ->middleware('throttle:10,1')
             ->name('cv.tailor');
+        Route::post('cv/{cv}/cover-letter', [CvController::class, 'coverLetter'])
+            ->middleware('throttle:10,1')
+            ->name('cv.cover-letter');
         Route::get('cv/{cv}/download', [CvController::class, 'download'])->name('cv.download');
         Route::delete('cv/{cv}', [CvController::class, 'destroy'])->name('cv.destroy');
 

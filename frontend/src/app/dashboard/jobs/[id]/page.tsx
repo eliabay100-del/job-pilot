@@ -91,6 +91,56 @@ function TailorCvButton({ jobId }: { jobId: number }) {
   );
 }
 
+type CoverLetter = { content: string; provider: string; prompt_version: string };
+
+function CoverLetterButton({ jobId }: { jobId: number }) {
+  const [busy, setBusy] = useState(false);
+  const [letter, setLetter] = useState<CoverLetter | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function generate() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const versions = await api.get<CvSource[]>('/cv');
+      const source = versions.find((version) => version.kind !== 'tailored' && version.parse_status === 'confirmed');
+      if (!source) {
+        setMessage('Confirm a parsed CV first from CV & Documents.');
+        return;
+      }
+      setLetter(await api.post<CoverLetter>(`/cv/${source.id}/cover-letter`, { target_job_id: jobId }));
+    } catch (err) {
+      setMessage(err instanceof ApiError ? err.message : 'Could not generate a cover letter.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-2">
+      <Button variant="secondary" onClick={() => void generate()} disabled={busy}>
+        {busy ? 'Drafting…' : 'Generate cover letter'}
+      </Button>
+      {message && <span className="max-w-56 text-right text-xs text-zinc-500">{message}</span>}
+      {letter && (
+        <div className="w-full max-w-xl rounded-lg border border-zinc-200 bg-white p-3 text-left shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Draft for review</span>
+            <span className="text-[11px] text-zinc-400">{letter.provider} · {letter.prompt_version}</span>
+          </div>
+          <textarea
+            value={letter.content}
+            onChange={(event) => setLetter({ ...letter, content: event.target.value })}
+            rows={10}
+            className="w-full resize-y rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm leading-6 text-zinc-800 outline-none focus:border-blue-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            aria-label="Cover letter draft"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MatchCard({ jobId }: { jobId: number }) {
   const [state, setState] = useState<MatchState | null>(null);
 
@@ -212,6 +262,7 @@ function JobDetailContent() {
           </div>
           <div className="flex flex-wrap items-start justify-end gap-2">
             <TailorCvButton jobId={job.id} />
+            <CoverLetterButton jobId={job.id} />
             <SaveJobButton jobId={job.id} initialSaved={job.is_saved ?? false} />
           </div>
         </div>

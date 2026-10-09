@@ -145,6 +145,32 @@ class CvUploadTest extends TestCase
             ->assertJsonPath('data.structured_data.skills.0.relevant_to_job', true);
     }
 
+    public function test_cover_letter_is_stored_with_source_and_usage_metadata(): void
+    {
+        $this->seed(TaxonomySeeder::class);
+        $profile = $this->user->ensureCandidateProfile();
+        $skill = Skill::where('name', 'Laravel')->firstOrFail();
+        $profile->skills()->create(['skill_id' => $skill->id, 'level' => 4, 'source' => 'candidate']);
+        $source = $profile->cvVersions()->create([
+            'title' => 'Main CV', 'kind' => 'uploaded', 'parse_status' => 'confirmed', 'version_number' => 1,
+        ]);
+        $company = Company::create(['name' => 'Acme', 'slug' => 'acme', 'verification_status' => 'verified']);
+        $job = Job::create([
+            'company_id' => $company->id, 'title' => 'Laravel Engineer', 'slug' => 'laravel-engineer',
+            'description' => 'Build Laravel services.', 'status' => 'published', 'published_at' => now(),
+        ]);
+
+        $this->postJson("/api/v1/cv/{$source->id}/cover-letter", ['target_job_id' => $job->id])
+            ->assertCreated()
+            ->assertJsonPath('data.status', 'draft')
+            ->assertJsonPath('data.source_cv_version_id', $source->id)
+            ->assertJsonPath('data.provider', 'local')
+            ->assertJsonPath('data.job_id', $job->id);
+
+        $this->assertDatabaseHas('cover_letters', ['source_cv_version_id' => $source->id, 'job_id' => $job->id]);
+        $this->assertDatabaseHas('ai_usage', ['operation' => 'cover_letter', 'user_id' => $this->user->id]);
+    }
+
     public function test_upload_rejects_disallowed_extension_and_mime(): void
     {
         $this->postJson('/api/v1/cv/upload', [
