@@ -58,12 +58,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   if (!loading && !user) return null;
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-6 py-8 md:flex-row">
-      <aside className="md:w-56 md:shrink-0">
+    <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-5 py-6 md:flex-row md:px-8 md:py-8">
+      <aside className="md:w-60 md:shrink-0">
         {user ? (
           <div className="flex items-center justify-between md:block">
-            <div>
-              <p className="text-sm font-semibold">{user.name}</p>
+            <div className="border-b border-zinc-200 pb-5">
+              <p className="text-lg font-bold tracking-tight text-blue-800">jobpilot<span className="text-zinc-900">.</span></p>
+              <p className="mt-5 text-sm font-semibold">{user.name}</p>
               <p className="text-xs text-zinc-500">{user.email}</p>
               {user.email_verified_at === null && (
                 <p className="mt-1 text-xs text-amber-600">Email not verified</p>
@@ -82,7 +83,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <NavLinks />
         </Suspense>
       </aside>
-      <main className="min-w-0 flex-1">{children}</main>
+      <main className="min-w-0 flex-1 md:max-w-5xl">{children}</main>
     </div>
   );
 }

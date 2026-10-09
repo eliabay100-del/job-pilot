@@ -71,6 +71,15 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             ->middleware('throttle:10,1')
             ->name('cv.upload');
         Route::get('cv/{cv}', [CvController::class, 'show'])->name('cv.show');
+        Route::post('cv/{cv}/parse', [CvController::class, 'parse'])
+            ->middleware('throttle:10,1')
+            ->name('cv.parse');
+        Route::post('cv/{cv}/confirm', [CvController::class, 'confirm'])
+            ->middleware('throttle:10,1')
+            ->name('cv.confirm');
+        Route::post('cv/{cv}/tailor', [CvController::class, 'tailor'])
+            ->middleware('throttle:10,1')
+            ->name('cv.tailor');
         Route::get('cv/{cv}/download', [CvController::class, 'download'])->name('cv.download');
         Route::delete('cv/{cv}', [CvController::class, 'destroy'])->name('cv.destroy');
 

@@ -45,4 +45,9 @@ class CvVersion extends Model
     {
         return $this->belongsTo(Document::class);
     }
+
+    public function tailoredForJob(): BelongsTo
+    {
+        return $this->belongsTo(Job::class, 'tailored_for_job_id');
+    }
 }

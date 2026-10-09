@@ -4,10 +4,16 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Domain\AI\Actions\ParseCv;
+use App\Domain\AI\Actions\ConfirmCvExtraction;
+use App\Domain\AI\Actions\TailorCv;
 use App\Domain\CV\Actions\StoreUploadedFile;
 use App\Domain\CV\Resources\CvVersionResource;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CV\UploadCvRequest;
+use App\Http\Requests\CV\ConfirmCvRequest;
+use App\Http\Requests\CV\TailorCvRequest;
+use App\Models\Job;
 use App\Models\CvVersion;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,7 +24,12 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CvController extends Controller
 {
-    public function __construct(private readonly StoreUploadedFile $storeFile)
+    public function __construct(
+        private readonly StoreUploadedFile $storeFile,
+        private readonly ParseCv $parseCv,
+        private readonly ConfirmCvExtraction $confirmCvExtraction,
+        private readonly TailorCv $tailorCv,
+    )
     {
     }
 
@@ -55,6 +66,30 @@ class CvController extends Controller
         Gate::authorize('view', $cv);
 
         return new CvVersionResource($cv->load('document'));
+    }
+
+    public function parse(Request $request, CvVersion $cv): CvVersionResource
+    {
+        Gate::authorize('update', $cv);
+
+        return new CvVersionResource($this->parseCv->handle($cv));
+    }
+
+    public function confirm(ConfirmCvRequest $request, CvVersion $cv): CvVersionResource
+    {
+        Gate::authorize('update', $cv);
+
+        return new CvVersionResource($this->confirmCvExtraction->handle($cv, $request->validated('fields')));
+    }
+
+    public function tailor(TailorCvRequest $request, CvVersion $cv): JsonResponse
+    {
+        Gate::authorize('update', $cv);
+        $job = Job::with('skills')->findOrFail($request->validated('target_job_id'));
+        Gate::authorize('view', $job);
+
+        return (new CvVersionResource($this->tailorCv->handle($cv, $job)))
+            ->response()->setStatusCode(200);
     }
 
     public function download(Request $request, CvVersion $cv): StreamedResponse

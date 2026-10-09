@@ -18,8 +18,10 @@ class CvVersionResource extends JsonResource
             'title' => $this->title,
             'kind' => $this->kind,
             'version_number' => $this->version_number,
+            'tailored_for_job_id' => $this->tailored_for_job_id,
             'parse_status' => $this->parse_status,
             'parse_confidence' => $this->parse_confidence,
+            'parse_error' => $this->when($this->parse_status === 'failed', $this->parse_error),
             'structured_data' => $this->when(
                 in_array($this->parse_status, ['needs_confirmation', 'confirmed'], true),
                 fn () => $this->structured_data,

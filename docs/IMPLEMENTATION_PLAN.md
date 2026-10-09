@@ -9,7 +9,7 @@ A feature is Complete only when DB, backend, API, frontend, validation, authoriz
 | 2 | Candidate platform: profile, education, experience, skills, CV, documents | Complete | Complete | Complete | Complete | Complete | Complete | 1 |
 | 3 | Jobs: companies, jobs, categories, sources, ingestion, search, filters | Complete | Complete | Complete | Complete | Complete | Complete | 1 |
 | 4 | Matching: deterministic, embeddings, score, explanation | Complete | Complete | Complete | Complete | Complete | Complete | 2, 3 |
-| 5 | AI: CV parser, tailor, cover letter, assistant, interview prep | Not Started | - | - | - | - | - | 2, 4 |
+| 5 | AI: CV parser, tailor, cover letter, assistant, interview prep | In Progress | Started | Started | Complete | Complete | Started | 2, 4 |
 | 6 | Applications: save, apply, tracker, reminders | Not Started | - | - | - | - | - | 3 |
 | 7 | Notifications: email, Telegram, in-app | Not Started | - | - | - | - | - | 6 |
 | 8 | Payments: plans, subscriptions, provider abstraction, webhooks, entitlements | Not Started | - | - | - | - | - | 1 |

@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Domain\AI\Contracts\CvParser;
+use App\Domain\AI\Parsers\LocalCvParser;
 use App\Domain\Matching\Contracts\SemanticSimilarityProvider;
 use App\Domain\Matching\Providers\NullSemanticSimilarityProvider;
 use App\Models\CandidateCertification;
@@ -36,6 +38,7 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(CvParser::class, LocalCvParser::class);
         // Swapped for an embedding-backed provider once pgvector is available.
         $this->app->bind(SemanticSimilarityProvider::class, NullSemanticSimilarityProvider::class);
     }

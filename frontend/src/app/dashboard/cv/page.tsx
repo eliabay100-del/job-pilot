@@ -18,6 +18,15 @@ type CvVersion = {
   kind: string;
   version_number: number;
   parse_status: string;
+  parse_confidence: string | null;
+  parse_error?: string | null;
+  structured_data?: {
+    name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    location?: string | null;
+    summary?: string | null;
+  } | null;
   document: CvDocument | null;
   created_at: string;
 };
@@ -42,6 +51,7 @@ function CvSection() {
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [parsingId, setParsingId] = useState<number | null>(null);
 
   const load = useCallback(() => {
     api.get<CvVersion[]>("/cv").then((data) => setVersions(Array.isArray(data) ? data : []));
@@ -75,11 +85,39 @@ function CvSection() {
     load();
   }
 
+  async function parse(id: number) {
+    setParsingId(id);
+    setError(null);
+    try {
+      await api.post(`/cv/${id}/parse`);
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not parse this CV.");
+    } finally {
+      setParsingId(null);
+    }
+  }
+
+  async function confirm(id: number, data: CvVersion["structured_data"]) {
+    const fields = ["name", "location", "summary"].filter((field) => Boolean(data?.[field as keyof NonNullable<typeof data>]));
+    if (fields.length === 0) return;
+    setParsingId(id);
+    setError(null);
+    try {
+      await api.post(`/cv/${id}/confirm`, { fields });
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not confirm the extracted details.");
+    } finally {
+      setParsingId(null);
+    }
+  }
+
   return (
     <Card>
       <SectionHeader
         title="CV versions"
-        description="PDF, DOC or DOCX up to 5 MB. Files are stored privately; parsing arrives in a later phase."
+        description="Upload a private PDF, DOC or DOCX, then review the extracted details before they reach your profile."
       />
       <form onSubmit={upload} className="flex flex-wrap items-end gap-3">
         <div className="min-w-52 flex-1">
@@ -111,7 +149,7 @@ function CvSection() {
             {versions.map((cv) => (
               <li
                 key={cv.id}
-                className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 px-3 py-2 dark:border-zinc-700"
+                className="flex flex-col gap-3 rounded-lg border border-zinc-200 px-3 py-3"
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">
@@ -123,7 +161,14 @@ function CvSection() {
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <Badge tone={cv.parse_status === "pending" ? "amber" : "blue"}>{cv.parse_status}</Badge>
+                  <Badge tone={cv.parse_status === "needs_confirmation" ? "green" : cv.parse_status === "failed" ? "amber" : "blue"}>
+                    {cv.parse_status.replace("_", " ")}
+                  </Badge>
+                  {(cv.parse_status === "pending" || cv.parse_status === "failed") && (
+                    <Button size="sm" variant="secondary" disabled={parsingId === cv.id} onClick={() => void parse(cv.id)}>
+                      {parsingId === cv.id ? "Reading…" : "Parse CV"}
+                    </Button>
+                  )}
                   {cv.document && (
                     <Button
                       size="sm"
@@ -139,6 +184,20 @@ function CvSection() {
                     Delete
                   </Button>
                 </div>
+                {cv.parse_status === "needs_confirmation" && cv.structured_data && (
+                  <div className="mt-3 rounded-md border border-blue-100 bg-blue-50/70 px-3 py-2 text-xs text-blue-950">
+                    <p className="font-semibold">Review extracted details</p>
+                    <p className="mt-1 text-blue-900/75">
+                      {[cv.structured_data.name, cv.structured_data.email, cv.structured_data.phone, cv.structured_data.location]
+                        .filter(Boolean)
+                        .join(" · ") || "No labeled contact details were found."}
+                    </p>
+                    <p className="mt-1 text-blue-900/60">Nothing is added to your profile automatically.</p>
+                    <Button size="sm" className="mt-2" disabled={parsingId === cv.id} onClick={() => void confirm(cv.id, cv.structured_data)}>
+                      {parsingId === cv.id ? "Confirming…" : "Confirm selected details"}
+                    </Button>
+                  </div>
+                )}
               </li>
             ))}
           </ul>

@@ -21,14 +21,14 @@ export function Button({ variant = "primary", size = "md", className, ...props }
   return (
     <button
       className={cx(
-        "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50",
         size === "sm" ? "px-2.5 py-1.5 text-xs" : "px-4 py-2 text-sm",
-        variant === "primary" && "bg-blue-700 text-white hover:bg-blue-800",
+        variant === "primary" && "bg-blue-700 text-white shadow-sm hover:bg-blue-800",
         variant === "secondary" &&
-          "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800",
+          "border border-zinc-300 bg-white text-zinc-800 shadow-sm hover:border-blue-300 hover:bg-blue-50",
         variant === "danger" && "bg-red-600 text-white hover:bg-red-700",
         variant === "ghost" &&
-          "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800",
+          "text-zinc-600 hover:bg-blue-50 hover:text-blue-800",
         className,
       )}
       {...props}
@@ -40,7 +40,7 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
   return (
     <input
       className={cx(
-        "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-blue-600 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100",
+        "w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 shadow-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100",
         className,
       )}
       {...props}
@@ -52,7 +52,7 @@ export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTex
   return (
     <textarea
       className={cx(
-        "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-blue-600 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100",
+        "w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 shadow-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100",
         className,
       )}
       rows={4}
@@ -65,7 +65,7 @@ export function Select({ className, children, ...props }: SelectHTMLAttributes<H
   return (
     <select
       className={cx(
-        "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-blue-600 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100",
+        "w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100",
         className,
       )}
       {...props}
@@ -99,7 +99,7 @@ export function Card({ children, className }: { children: ReactNode; className?:
   return (
     <div
       className={cx(
-        "rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900",
+        "rounded-xl border border-zinc-200/90 bg-white p-5 shadow-[0_8px_30px_rgba(23,32,51,0.05)]",
         className,
       )}
     >
@@ -120,7 +120,7 @@ export function SectionHeader({
   return (
     <div className="mb-4 flex items-start justify-between gap-4">
       <div>
-        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">{title}</h2>
+        <h2 className="text-base font-semibold tracking-tight text-zinc-900">{title}</h2>
         {description && (
           <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{description}</p>
         )}
@@ -134,11 +134,11 @@ export function Badge({ children, tone = "zinc" }: { children: ReactNode; tone?:
   return (
     <span
       className={cx(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-        tone === "zinc" && "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-        tone === "blue" && "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200",
-        tone === "green" && "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200",
-        tone === "amber" && "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200",
+        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold",
+        tone === "zinc" && "bg-zinc-100 text-zinc-700",
+        tone === "blue" && "bg-blue-100 text-blue-800",
+        tone === "green" && "bg-emerald-100 text-emerald-800",
+        tone === "amber" && "bg-amber-100 text-amber-800",
       )}
     >
       {children}

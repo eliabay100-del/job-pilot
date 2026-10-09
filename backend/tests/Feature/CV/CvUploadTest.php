@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace Tests\Feature\CV;
 
 use App\Models\CvVersion;
+use App\Models\Document;
+use App\Models\Company;
+use App\Models\Job;
+use App\Models\Skill;
+use Database\Seeders\TaxonomySeeder;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -59,6 +64,85 @@ class CvUploadTest extends TestCase
         ])->assertCreated()->assertJsonPath('data.version_number', 2);
 
         $this->getJson('/api/v1/cv')->assertOk()->assertJsonCount(2, 'data');
+    }
+
+    public function test_parse_stores_reviewable_extraction_without_mapping_profile_data(): void
+    {
+        $profile = $this->user->ensureCandidateProfile();
+        $path = 'documents/1/resume.doc';
+        Storage::disk('local')->put($path, 'Name: Hana Tesfaye | Email: hana@example.com | Location: Addis Ababa');
+        $document = Document::create([
+            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'uploaded_by' => $this->user->id,
+            'disk' => 'local',
+            'path' => $path,
+            'original_name' => 'resume.doc',
+            'mime_type' => 'application/msword',
+            'size_bytes' => 72,
+            'sha256' => hash('sha256', 'cv'),
+            'scan_status' => 'skipped',
+            'scanned_at' => now(),
+        ]);
+        $cv = $profile->cvVersions()->create([
+            'document_id' => $document->id,
+            'title' => 'Resume',
+            'kind' => 'uploaded',
+            'version_number' => 1,
+        ]);
+
+        $this->postJson("/api/v1/cv/{$cv->id}/parse")
+            ->assertOk()
+            ->assertJsonPath('data.parse_status', 'needs_confirmation')
+            ->assertJsonPath('data.structured_data.name', 'Hana Tesfaye')
+            ->assertJsonPath('data.structured_data.email', 'hana@example.com');
+
+        $this->assertDatabaseHas('cv_versions', [
+            'id' => $cv->id,
+            'parse_status' => 'needs_confirmation',
+        ]);
+        $this->assertDatabaseMissing('candidate_profiles', ['display_name' => 'Hana Tesfaye']);
+
+        $this->postJson("/api/v1/cv/{$cv->id}/confirm", ['fields' => ['name', 'location']])
+            ->assertOk()
+            ->assertJsonPath('data.parse_status', 'confirmed');
+
+        $this->assertDatabaseHas('candidate_profiles', [
+            'id' => $profile->id,
+            'display_name' => 'Hana Tesfaye',
+            'city' => 'Addis Ababa',
+        ]);
+    }
+
+    public function test_tailor_creates_traceable_version_from_profile_facts(): void
+    {
+        $this->seed(TaxonomySeeder::class);
+        $profile = $this->user->ensureCandidateProfile();
+        $skill = Skill::where('name', 'Laravel')->firstOrFail();
+        $profile->skills()->create(['skill_id' => $skill->id, 'level' => 4, 'source' => 'candidate']);
+        $source = $profile->cvVersions()->create([
+            'title' => 'Main CV',
+            'kind' => 'uploaded',
+            'structured_data' => ['name' => 'Hana Tesfaye'],
+            'parse_status' => 'confirmed',
+            'version_number' => 1,
+        ]);
+        $company = Company::create(['name' => 'Acme', 'slug' => 'acme', 'verification_status' => 'verified']);
+        $job = Job::create([
+            'company_id' => $company->id,
+            'title' => 'Laravel Engineer',
+            'slug' => 'laravel-engineer',
+            'description' => 'Build Laravel services.',
+            'status' => 'published',
+            'published_at' => now(),
+        ]);
+        $job->skills()->attach($skill->id, ['is_required' => true]);
+
+        $this->postJson("/api/v1/cv/{$source->id}/tailor", ['target_job_id' => $job->id])
+            ->assertOk()
+            ->assertJsonPath('data.kind', 'tailored')
+            ->assertJsonPath('data.tailored_for_job_id', $job->id)
+            ->assertJsonPath('data.structured_data.source_cv_version_id', $source->id)
+            ->assertJsonPath('data.structured_data.skills.0.relevant_to_job', true);
     }
 
     public function test_upload_rejects_disallowed_extension_and_mime(): void

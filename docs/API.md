@@ -60,17 +60,20 @@ All routes require Bearer auth. Ownership is enforced by policies — users only
 | Certifications | `/profile/certifications` | `name` required; `expires_at` > `issued_at`. |
 | Languages | `/profile/languages` | Unique language per profile; proficiency `basic|working|professional|native` + per-skill levels. No show endpoint. |
 
-## CV (Phase 2)
+## CV (Phase 2 + Phase 5)
 
 | Method | Path | Description |
 |---|---|---|
 | GET | `/cv` | Paginated CV versions (newest first) with document metadata. |
 | POST | `/cv/upload` | Upload CV (multipart `file`; pdf/doc/docx ≤ 5 MB, MIME verified; optional `title`). Creates a `Document` + `CvVersion` (`kind=uploaded`, `parse_status=pending`, auto-incremented `version_number`). Rate limited. |
 | GET | `/cv/{id}` | One CV version. |
+| POST | `/cv/{id}/parse` | Extract readable, labeled CV fields into `structured_data` with `parse_status=needs_confirmation`; never maps fields into the candidate profile automatically. Rate limited. |
+| POST | `/cv/{id}/confirm` | Confirm selected extracted fields with `{ "fields": ["name", "location", "summary"] }`; maps only those supported profile fields and marks the version `confirmed`. Account email and phone are never changed. Rate limited. |
+| POST | `/cv/{id}/tailor` | Create a traceable `kind=tailored` version for `{ "target_job_id": 123 }`; reorders existing profile skills and experience only. Rate limited. |
 | GET | `/cv/{id}/download` | Access-controlled download of the backing file. |
 | DELETE | `/cv/{id}` | Delete version; backing file deleted when unreferenced. |
 
-File security (SPEC §38): extension + MIME + size validation, generated UUID filenames (original name kept for display only), sha256 recorded, private `local` disk (never the public filesystem), downloads only through authorized endpoints. Malware scanning hooks land in Phase 12 (`scan_status` column). CV parsing is Phase 5.
+File security (SPEC §38): extension + MIME + size validation, generated UUID filenames (original name kept for display only), sha256 recorded, private `local` disk (never the public filesystem), downloads only through authorized endpoints. Malware scanning hooks land in Phase 12 (`scan_status` column). The current Phase 5 parser is a conservative local fallback; hosted provider adapters and usage accounting remain open.
 
 ## Documents (Phase 2)
 

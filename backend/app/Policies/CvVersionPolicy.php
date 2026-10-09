@@ -14,6 +14,11 @@ class CvVersionPolicy
         return $cvVersion->candidateProfile->user_id === $user->id;
     }
 
+    public function update(User $user, CvVersion $cvVersion): bool
+    {
+        return $this->view($user, $cvVersion);
+    }
+
     public function delete(User $user, CvVersion $cvVersion): bool
     {
         return $this->view($user, $cvVersion);

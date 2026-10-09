@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
-import { ApiError } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { SaveJobButton } from "@/components/JobCard";
 import { MatchPanel } from "@/components/MatchPanel";
 import { Badge, Button, Card, ErrorText, SectionHeader, Spinner } from "@/components/ui";
@@ -55,6 +55,41 @@ function describe(err: unknown): string {
 }
 
 type MatchState = { id: number; match: MatchExplanation | null; error: string | null };
+
+type CvSource = { id: number; kind: string; parse_status: string; title: string };
+
+function TailorCvButton({ jobId }: { jobId: number }) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function tailor() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const versions = await api.get<CvSource[]>("/cv");
+      const source = versions.find((version) => version.kind !== "tailored" && version.parse_status === "confirmed");
+      if (!source) {
+        setMessage("Confirm a parsed CV first from CV & Documents.");
+        return;
+      }
+      await api.post(`/cv/${source.id}/tailor`, { target_job_id: jobId });
+      setMessage("Tailored CV created. Find it in CV & Documents.");
+    } catch (err) {
+      setMessage(err instanceof ApiError ? err.message : "Could not tailor your CV.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <Button variant="secondary" onClick={() => void tailor()} disabled={busy}>
+        {busy ? "Tailoring…" : "Tailor CV"}
+      </Button>
+      {message && <span className="max-w-56 text-right text-xs text-zinc-500">{message}</span>}
+    </div>
+  );
+}
 
 function MatchCard({ jobId }: { jobId: number }) {
   const [state, setState] = useState<MatchState | null>(null);
@@ -175,7 +210,10 @@ function JobDetailContent() {
               {[job.city, job.region].filter(Boolean).join(", ") || job.country}
             </p>
           </div>
-          <SaveJobButton jobId={job.id} initialSaved={job.is_saved ?? false} />
+          <div className="flex flex-wrap items-start justify-end gap-2">
+            <TailorCvButton jobId={job.id} />
+            <SaveJobButton jobId={job.id} initialSaved={job.is_saved ?? false} />
+          </div>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
