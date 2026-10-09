@@ -44,7 +44,6 @@ export type PageMeta = {
 };
 
 export type Paginated<T> = { data: T[]; meta: PageMeta };
-
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
   const token = getToken();
@@ -86,6 +85,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 export const api = {
   get: <T>(path: string) => request<T>(path),
   list: <T>(path: string) => request<Paginated<T>>(path, { unwrap: true }),
+  /** Endpoints whose meta block is not the paginator shape (e.g. /matches). */
+  envelope: <T, M>(path: string) => request<{ data: T; meta: M }>(path, { unwrap: true }),
   post: <T>(path: string, body?: unknown) => request<T>(path, { method: "POST", body }),
   put: <T>(path: string, body?: unknown) => request<T>(path, { method: "PUT", body }),
   del: <T>(path: string) => request<T>(path, { method: "DELETE" }),

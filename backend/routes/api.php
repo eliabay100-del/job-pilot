@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\EmailVerificationController;
 use App\Http\Controllers\Api\V1\ExperienceController;
 use App\Http\Controllers\Api\V1\JobController;
 use App\Http\Controllers\Api\V1\LanguageController;
+use App\Http\Controllers\Api\V1\MatchController;
 use App\Http\Controllers\Api\V1\PreferenceController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\ProjectController;
@@ -101,5 +102,13 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::delete('jobs/{job}/save', [SavedJobController::class, 'destroy'])->name('jobs.unsave');
         Route::get('saved-jobs', [SavedJobController::class, 'index'])->name('saved-jobs.index');
         Route::get('companies/{company}', [CompanyController::class, 'show'])->name('companies.show');
+
+        /*
+        | Phase 4 — Matching (SPEC section 19). Scores are derived from database
+        | facts by the deterministic engine and stored on every read; no model
+        | decides anything factual here.
+        */
+        Route::get('matches', [MatchController::class, 'index'])->name('matches.index');
+        Route::get('jobs/{job}/match', [MatchController::class, 'show'])->name('jobs.match');
     });
 });

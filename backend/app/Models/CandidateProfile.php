@@ -90,4 +90,9 @@ class CandidateProfile extends Model
     {
         return $this->hasMany(CvVersion::class);
     }
+
+    public function matches(): HasMany
+    {
+        return $this->hasMany(JobMatch::class);
+    }
 }

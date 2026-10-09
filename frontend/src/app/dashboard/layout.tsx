@@ -9,6 +9,7 @@ import { Button, Spinner, cx } from "@/components/ui";
 const nav = [
   { href: "/dashboard", label: "Overview" },
   { href: "/dashboard/jobs", label: "Find jobs" },
+  { href: "/dashboard/matches", label: "Your matches" },
   { href: "/dashboard/saved", label: "Saved jobs" },
   { href: "/dashboard/profile", label: "Profile" },
   { href: "/dashboard/cv", label: "CV & Documents" },

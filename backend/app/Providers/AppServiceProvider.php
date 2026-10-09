@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Domain\Matching\Contracts\SemanticSimilarityProvider;
+use App\Domain\Matching\Providers\NullSemanticSimilarityProvider;
 use App\Models\CandidateCertification;
 use App\Models\CandidateEducation;
 use App\Models\CandidateExperience;
@@ -13,6 +15,7 @@ use App\Models\Company;
 use App\Models\CvVersion;
 use App\Models\Document;
 use App\Models\Job;
+use App\Models\JobMatch;
 use App\Policies\CandidateCertificationPolicy;
 use App\Policies\CandidateEducationPolicy;
 use App\Policies\CandidateExperiencePolicy;
@@ -23,6 +26,7 @@ use App\Policies\CandidateSkillPolicy;
 use App\Policies\CompanyPolicy;
 use App\Policies\CvVersionPolicy;
 use App\Policies\DocumentPolicy;
+use App\Policies\JobMatchPolicy;
 use App\Policies\JobPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
@@ -32,7 +36,8 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // Swapped for an embedding-backed provider once pgvector is available.
+        $this->app->bind(SemanticSimilarityProvider::class, NullSemanticSimilarityProvider::class);
     }
 
     public function boot(): void
@@ -49,13 +54,15 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Document::class, DocumentPolicy::class);
         Gate::policy(CvVersion::class, CvVersionPolicy::class);
         Gate::policy(Job::class, JobPolicy::class);
+        Gate::policy(JobMatch::class, JobMatchPolicy::class);
         Gate::policy(Company::class, CompanyPolicy::class);
     }
 
     /**
-     * Every model-bound route parameter is a bigint primary key. Without these
+     * Every id-bound route parameter is a bigint primary key. Without these
      * patterns a non-numeric segment reaches Eloquent and PostgreSQL fails with
      * "invalid input syntax for type bigint" — a 500 instead of a 404.
+     * {company} is deliberately absent: companies resolve by slug.
      */
     private function registerRouteConstraints(): void
     {

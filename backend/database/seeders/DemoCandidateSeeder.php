@@ -6,6 +6,7 @@ namespace Database\Seeders;
 
 use App\Domain\Candidates\Actions\RecomputeYearsExperience;
 use App\Enums\UserRole;
+use App\Models\EducationLevel;
 use App\Models\Institution;
 use App\Models\Skill;
 use App\Models\User;
@@ -48,18 +49,26 @@ class DemoCandidateSeeder extends Seeder
         ]);
 
         $aau = Institution::where('name', 'Addis Ababa University')->first();
+        $bachelor = EducationLevel::where('name', 'Bachelor')->first();
 
-        $profile->educations()->firstOrCreate(
+        $education = $profile->educations()->firstOrCreate(
             ['degree' => 'BSc Software Engineering'],
             [
                 'institution_id' => $aau?->id,
                 'institution_name' => $aau?->name ?? 'Addis Ababa University',
+                'education_level_id' => $bachelor?->id,
                 'field_of_study' => 'Software Engineering',
                 'start_year' => 2019,
                 'end_year' => 2023,
                 'cgpa' => 3.65,
             ],
         );
+
+        // Matching compares education by taxonomy rank; fill the level on rows
+        // seeded before it was set, without touching deliberate edits.
+        if ($education->education_level_id === null && $bachelor !== null) {
+            $education->update(['education_level_id' => $bachelor->id]);
+        }
 
         $profile->experiences()->firstOrCreate(
             ['job_title' => 'Junior Software Developer', 'company' => 'Example Tech PLC'],

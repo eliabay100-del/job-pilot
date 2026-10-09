@@ -5,7 +5,9 @@ import { useParams } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
 import { ApiError } from "@/lib/api";
 import { SaveJobButton } from "@/components/JobCard";
+import { MatchPanel } from "@/components/MatchPanel";
 import { Badge, Button, Card, ErrorText, SectionHeader, Spinner } from "@/components/ui";
+import { fetchJobMatch, type MatchExplanation } from "@/lib/matches";
 import {
   daysUntil,
   employmentTypeLabel,
@@ -50,6 +52,51 @@ function describe(err: unknown): string {
   if (err instanceof ApiError && err.status === 404) return "We could not find that job.";
   if (err instanceof ApiError) return err.message;
   return "Could not load the job.";
+}
+
+type MatchState = { id: number; match: MatchExplanation | null; error: string | null };
+
+function MatchCard({ jobId }: { jobId: number }) {
+  const [state, setState] = useState<MatchState | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchJobMatch(jobId)
+      .then((result) => {
+        if (!cancelled) setState({ id: jobId, match: result.match, error: null });
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof ApiError ? err.message : "Could not score this job.";
+        if (!cancelled) setState({ id: jobId, match: null, error: message });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId]);
+
+  if (state === null || state.id !== jobId) {
+    return (
+      <Card>
+        <Spinner label="Scoring this job against your profile…" />
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <SectionHeader
+        title="Your match"
+        description="Scored from your profile by the deterministic engine — every point is explained."
+      />
+      {state.match ? (
+        <MatchPanel match={state.match} />
+      ) : (
+        <p className="text-sm text-zinc-500">{state.error ?? "Match unavailable."}</p>
+      )}
+    </Card>
+  );
 }
 
 export default function JobDetailPage() {
@@ -175,6 +222,8 @@ function JobDetailContent() {
           </div>
         )}
       </Card>
+
+      <MatchCard jobId={job.id} />
 
       <Card className="space-y-4">
         <TextBlock title="About the role" body={job.description} />

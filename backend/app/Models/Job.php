@@ -145,4 +145,9 @@ class Job extends Model
     {
         return $this->belongsToMany(User::class, 'saved_jobs')->withTimestamps();
     }
+
+    public function matches(): HasMany
+    {
+        return $this->hasMany(JobMatch::class);
+    }
 }

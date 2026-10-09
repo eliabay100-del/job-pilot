@@ -8,7 +8,7 @@ A feature is Complete only when DB, backend, API, frontend, validation, authoriz
 | 1 | Foundation: Docker, auth, roles, API structure, design system | In Progress | Complete | Complete | Complete | Complete | Complete | - |
 | 2 | Candidate platform: profile, education, experience, skills, CV, documents | Complete | Complete | Complete | Complete | Complete | Complete | 1 |
 | 3 | Jobs: companies, jobs, categories, sources, ingestion, search, filters | Complete | Complete | Complete | Complete | Complete | Complete | 1 |
-| 4 | Matching: deterministic, embeddings, score, explanation | Not Started | - | - | - | - | - | 2, 3 |
+| 4 | Matching: deterministic, embeddings, score, explanation | Complete | Complete | Complete | Complete | Complete | Complete | 2, 3 |
 | 5 | AI: CV parser, tailor, cover letter, assistant, interview prep | Not Started | - | - | - | - | - | 2, 4 |
 | 6 | Applications: save, apply, tracker, reminders | Not Started | - | - | - | - | - | 3 |
 | 7 | Notifications: email, Telegram, in-app | Not Started | - | - | - | - | - | 6 |
@@ -33,6 +33,19 @@ saved-jobs list, job detail with company profile, and graceful 403/404 handling.
 ingestion pipeline (`php artisan jobs:ingest`) was exercised by tests for the publish-vs-hold
 rule, fingerprint dedupe and mirror-URL collapse. Employer posting and the moderation queue for
 held listings remain in Phases 7 and 9.
+
+Phase 4 was verified end-to-end on PostgreSQL (96 feature tests, 440 assertions) and in the
+browser: the deterministic engine scores every published job against the demo candidate, ranks
+them, and explains each component (`/dashboard/matches`), and a single job shows the same
+breakdown under "Your match" on its detail page. Weights, penalties, seniority ladder and
+recommendation bands are configuration (`backend/config/matching.php`), scores are stored in
+`job_matches` and `php artisan matching:compute` reproduces them idempotently.
+
+Phase 4 open item: the embeddings half of the phase is stubbed, not implemented. pgvector is not
+available locally, so `semantic` carries weight 0 and always reports itself unscoreable through
+`NullSemanticSimilarityProvider`. Install pgvector, bind a real `SemanticSimilarityProvider`
+against the `embedding` columns migration `000007` already guards, and raise the weight in config
+to close it — no engine change required.
 
 ## MVP scope (from spec section 65)
 

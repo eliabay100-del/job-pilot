@@ -139,6 +139,73 @@ would create a brand-new company are held at `pending_review` with `risk_level=r
 Phase 7 moderation queue. Every run is recorded in `job_source_records`
 (`parsed` / `duplicate` / `rejected` with the validation error).
 
+## Matching (Phase 4)
+
+Deterministic scoring (SPEC §19): every point comes from database facts, and every score ships
+with the arithmetic behind it. Both routes require Bearer auth and always score against the
+caller's own candidate profile (auto-created on first access).
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/matches` | Every published, unexpired job scored against your profile, ranked by score. Returns `{ success, data: [{ job, match }], meta }`. |
+| GET | `/jobs/{id}/match` | One job scored against your profile. Returns `{ success, data: { job, match } }`. |
+
+### Parameters (GET /matches)
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `limit` | int | 1–100, default 20. Applied after ranking. |
+| `min_score` | numeric | 0–100. Drops matches scoring below the value. |
+
+`meta` carries `total` (matches returned before/after filtering), `returned`, `scored_jobs`
+(published jobs the engine ran against) and `model_version`. Scoring more than
+`matching.max_jobs_per_request` (500) listings per request is capped server-side; use
+`php artisan matching:compute` to precompute the full set into `job_matches`.
+
+### Match payload
+
+```json
+{
+  "job": { "id": 2, "title": "Full Stack Developer", "company": { "name": "Gebeya Inc." } },
+  "match": {
+    "overall_score": 88.5,
+    "weighted_score": 92.5,
+    "penalty": 4,
+    "recommendation": "Strong candidate. Apply.",
+    "component_scores": {
+      "skills": { "score": 75, "weight": 30, "applied": true, "detail": "6 of 8 weighted skill points." },
+      "semantic": { "score": null, "weight": 0, "applied": false, "detail": "Semantic fit unavailable (none)." }
+    },
+    "matched_skills": [{ "id": 7, "name": "Laravel", "is_required": true, "level": 4, "years_using": 3, "min_years": 2 }],
+    "missing_skills": [{ "id": 12, "name": "TypeScript", "is_required": true, "min_years": null }],
+    "weak_areas": [{ "type": "skill_years", "skill_id": 7, "name": "Laravel", "message": "…" }],
+    "hard_requirement_flags": ["missing_required_skills"],
+    "model_version": "deterministic-v1",
+    "computed_at": "2026-10-09T10:25:46+03:00"
+  }
+}
+```
+
+Components are `skills`, `experience`, `education`, `seniority`, `location`, `work_mode`,
+`preference` and `semantic`. A component that cannot be evaluated returns `score: null` with
+`applied: false` and a `detail` explaining what is missing; its weight drops out and the remaining
+weights are renormalized rather than dragging the score down. `overall_score` is
+`clamp(weighted_score − penalty, 0, 100)`. Flags: `missing_required_skills`,
+`experience_below_min`, `education_below_min`, `insufficient_data` (nothing on either side could be
+scored — the recommendation then says so instead of presenting 0 as a verdict).
+
+Weights, penalties, ladders and recommendation bands all live in `backend/config/matching.php`; no
+score is hard-coded. The `semantic` component reads a `SemanticSimilarityProvider` binding, which
+is the `NullSemanticSimilarityProvider` (always unscoreable, weight 0) until pgvector embeddings
+land — swapping the binding is the only change needed to turn it on.
+
+Writes go to `job_matches` (unique per candidate + job) through
+`App\Domain\Matching\Actions\ComputeJobMatch`, so a score is stored on read and recomputed on the
+next request. `php artisan matching:compute [--profile=] [--job=] [--limit=]` scores in bulk and is
+idempotent (upsert). Authorization: `JobMatchPolicy` keeps a candidate on their own rows, and the
+job itself is gated by `JobPolicy`, so a held or expired listing 403s/404s like the rest of the
+jobs API.
+
 ## Seed data (development)
 
 `php artisan db:seed` runs `TaxonomySeeder` (skills/aliases, industries, categories, roles, education levels, institutions), `DemoCandidateSeeder` (demo job seeker: `demo@jobpilot.test` / `Password!123` with a filled profile) and `DemoJobsSeeder` (four verified companies and eleven jobs across categories, seniorities and cities, including one expired and one held-for-review listing).

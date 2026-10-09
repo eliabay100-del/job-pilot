@@ -1,4 +1,4 @@
-# Handoff — Phase 2 candidate platform + Phase 3 jobs (2026-10-09)
+# Handoff — Phase 2 candidate platform, Phase 3 jobs, Phase 4 matching (2026-10-09)
 
 Branch: `ethiopian-ai-career-platform-a625b`. Previous PRs merged: #8 (frontend scaffold), #9 (Phase 2 backend foundation — models, policies, migrations).
 
@@ -99,6 +99,76 @@ Bugs found and fixed during Phase 3:
 - The frontend sent array filters as `work_modes=remote`, which Laravel rejects (array expected);
   `buildJobQuery` now emits `work_modes[]=` and `parseFilters` accepts both spellings.
 
+## Phase 4 — deterministic matching + explanation (2026-10-09)
+
+**Engine** — `app/Domain/Matching/`: `ScoreJobMatch` scores eight components (skills, experience,
+education, seniority, location, work mode, preference, semantic) from database facts only, each
+0–100 or `null` when it cannot be evaluated. A null component drops its weight and the rest are
+renormalized, so missing data never masquerades as a bad fit; when nothing at all is scoreable the
+result carries an `insufficient_data` flag and a recommendation that says so. `ComponentScore` and
+`MatchResult` are readonly value objects — `MatchResult` derives `overallScore`
+(`clamp(weighted − penalty, 0, 100)`) and the recommendation from the components it is given, so
+there is one source of truth for the arithmetic. Every number comes from
+`config/matching.php` (weights, penalties with a cap, skill credit, experience band, seniority
+ladder, location/work-mode/preference values, recommendation bands).
+
+Semantic similarity sits behind the `SemanticSimilarityProvider` contract; the bound
+implementation is `NullSemanticSimilarityProvider` (returns null, name `none`) because pgvector is
+absent locally. Binding a real provider plus raising the weight is the only change needed to turn
+embeddings on.
+
+**Persistence** — `JobMatch` model + `job_matches` table (unique per candidate profile and job).
+`ComputeJobMatch::handle()` scores and upserts one row; `handleMany()` scores a job set and
+`upsert()`s in chunks of 200. `php artisan matching:compute [--profile=] [--job=] [--limit=]`
+scores in bulk and prints a summary table; it is idempotent.
+
+**API** — `GET /matches` (`?limit=`, `?min_score=`) and `GET /jobs/{job}/match`, both in
+`MatchController`. Every request re-scores from current data and stores the result, so a score can
+never go stale relative to the profile. `JobMatchResource` returns `{ job, match }` together, where
+`match` carries `overall_score`, `weighted_score`, `penalty`, `recommendation`, per-component
+`component_scores` (score, weight, applied, human `detail`), `matched_skills`, `missing_skills`,
+`weak_areas`, `hard_requirement_flags`, `model_version` and `computed_at`. `JobMatchPolicy` keeps
+candidates on their own rows; the job itself is still gated by `JobPolicy`.
+
+**Frontend** — `/dashboard/matches` (minimum-score and top-N controls, re-score, ranked cards with
+save button, and a `MatchPanel` per job) plus a "Your match" card on `/dashboard/jobs/[id]`.
+`src/components/MatchPanel.tsx` renders the score bar, recommendation, flag badges, strong/missing
+skills, weak areas and a `<details>` disclosure "How this score was calculated" that lists every
+component with its score, weight and detail, ending in
+"Weighted score X − N points of hard-requirement penalties = Y. Model …, computed …".
+`src/lib/matches.ts` holds the types and fetchers.
+
+**Tests** — `tests/Feature/Matching/MatchScoringTest.php` (19 tests) pins the arithmetic: perfect
+alignment, required vs nice-to-have skill penalties, half credit below a minimum years requirement,
+experience below/above the band, education below/missing/unranked, the seniority and location
+ladders, work mode, preference averaging, unscoreable components dropping out of the weight, the
+penalty floor at 0, config-driven weights, semantic unavailable vs a bound stub provider, and the
+matched-skill evidence shape. `MatchApiTest.php` (12 tests) covers auth, ranking, storage,
+published-only, limit/min_score/validation, auto-created profile, single-job breakdown and upsert,
+403 on a held listing, 404 on unknown and non-numeric ids, cross-user isolation and the compute
+command. Suite total: **96 passed (440 assertions)** on PostgreSQL.
+
+**Verified in browser** — logged in as the demo candidate, `/dashboard/matches` renders nine ranked
+cards (89% → 34%) with flags, strong/missing skills, recommendations and the meta line
+"Showing 9 of 9 matches · 9 published jobs scored · model deterministic-v1"; the disclosure expands
+to the full component breakdown; the job detail page shows the same score under "Your match". No
+console errors. `tsc --noEmit`, `npm run lint` and `npm run build` all clean.
+
+Bugs found and fixed during Phase 4:
+
+- `JobMatch::upsert()` silently wrote PHP arrays into jsonb columns: Eloquent's `upsert` does not
+  apply model casts. `ComputeJobMatch::handleMany` now `json_encode`s every jsonb value itself.
+- `json_encode(100.0)` emits `100`, so JSON assertions written with `assertSame` failed on an
+  int/float mismatch. Those two assertions compare numerically instead.
+- Adding `'company'` to the numeric `Route::pattern` list broke `CompanyTest`: companies resolve by
+  slug (`getRouteKeyName()`), so the constraint turned every company route into a 404. Reverted and
+  documented in `AppServiceProvider`.
+- The demo candidate's education row had `education_level_id = NULL`, which scored education 0 and
+  added an 8-point penalty to every match — a misleading verdict caused by missing data. Two fixes:
+  the engine now returns unscoreable (null) with an explanatory `detail` when education exists but
+  no row carries a taxonomy level, and `DemoCandidateSeeder` sets Bachelor on create and backfills
+  a null level on re-run.
+
 ## Environment notes
 
 - PHP is Laravel Herd's: `/c/Users/ThinkPad/.config/herd/bin/php.bat`. Bare `php` is not on PATH in Git Bash.
@@ -108,10 +178,14 @@ Bugs found and fixed during Phase 3:
   `cd backend/public && php -S 127.0.0.1:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php`
 - `infra/setup-portable-postgres.sh`: `initdb` wants `--auth=scram-sha-256` (hyphen before 256), and `pg_ctl start` never returns under Git Bash, so the script backgrounds it and polls `pg_isready`.
 - Auth routes are throttled at 6/min. Reloading dashboard pages quickly in dev can 429 `/auth/me`, which the SPA reads as "logged out" and redirects to `/login`. Expected behaviour — wait out the window instead of debugging the session.
+- Browse the frontend at `http://localhost:3000`, never `http://127.0.0.1:3000`: Next 16 dev blocks cross-origin dev resources (HMR websocket, fonts) unless the host is in `allowedDevOrigins`, and the app then never hydrates — forms submit natively and no API call is made.
+- Do not run `npm run build` while `next dev` is up; it corrupts the running dev server. The stale process keeps holding port 3000 (the restart exits "Port 3000 is in use"), so kill it first: `taskkill //PID <n> //F` in Git Bash.
 
 ## Known gaps (intentional, later phases)
 
 - Malware scanning is deferred to Phase 12; uploads are recorded with `scan_status = 'skipped'`.
 - CV parsing (`parse_status` stays `pending`) arrives in Phase 5.
 - Held (`pending_review`) ingested listings wait for the Phase 7 admin moderation queue; employer posting/management is Phase 9.
+- The `semantic` match component is stubbed (`NullSemanticSimilarityProvider`, weight 0) until pgvector is installed; the `embedding` columns exist behind migration `000007`'s extension guard.
+- Matches are scored on read and upserted; there is no scheduled bulk recompute yet. `php artisan matching:compute` covers it manually until Phase 12 adds queue/scheduler wiring.
 - `docker-compose.yml` has no `backend`/`frontend` app services yet (Phase 1 scope). Docker Desktop is installed but its daemon does not start on this machine, so local dev uses Herd + portable PostgreSQL.
